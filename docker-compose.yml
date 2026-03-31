@@ -1,0 +1,65 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16
+    container_name: pg_events_container
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: eventsdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - events-net
+
+  mysql:
+    image: mysql:8
+    container_name: mysql_events_container
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: eventsdb
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - events-net
+
+  mongo:
+    image: mongo:7
+    container_name: mongo_events_container
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./db/mongo:/docker-entrypoint-initdb.d
+    networks:
+      - events-net
+
+  neo4j:
+    image: neo4j:5
+    container_name: neo4j_events_container
+    environment:
+      NEO4J_AUTH: neo4j/test1234
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - ./db/neo4j:/var/lib/neo4j/import
+    networks:
+      - events-net
+
+volumes:
+  postgres_data:
+  mysql_data:
+  mongo_data:
+  neo4j_data:
+
+networks:
+  events-net:

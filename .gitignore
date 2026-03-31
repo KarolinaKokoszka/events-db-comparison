@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.env
+venv/
+.venv/
+
+# Generator – wygenerowane dane (duże pliki JSON)
+generator/data/
+
+# Wyniki testów (CSV + wykresy)
+tests/results/
+
+# Docker volumes
+postgres_data/
+mysql_data/
+mongo_data/
+neo4j_data/
+
+# System
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/

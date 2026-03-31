@@ -1,0 +1,134 @@
+INSTRUKCJA URUCHOMIENIA PROJEKTU (WINDOWS + POWERSHELL)
+======================================================
+
+Ta instrukcja prowadzi krok po kroku:
+1) uruchomienie baz w Dockerze,
+2) generowanie danych,
+3) import do 4 baz,
+4) uruchomienie testow CRUD,
+5) zebranie planow EXPLAIN/PROFILE.
+
+
+WYMAGANIA
+---------
+- Docker Desktop (uruchomiony)
+- Python 3.11+
+- PowerShell
+
+
+KROK 0: PRZEJDZ DO FOLDERU PROJEKTU
+-----------------------------------
+cd "C:\Users\Marcin\OneDrive - Hauraton GmbH & Co. KG\Dokumente\STUDIA II\PK\ZTBD\Projekt\project-kopia"
+
+
+KROK 1: URUCHOM KONTENERY Z BAZAMI
+----------------------------------
+docker compose up -d
+
+Sprawdz czy kontenery dzialaja:
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+Oczekiwane nazwy:
+- pg_events_container
+- mysql_events_container
+- mongo_events_container
+- neo4j_events_container
+
+
+KROK 2: ZAINSTALUJ ZALEGZNOSCI PYTHON
+-------------------------------------
+cd generator
+python -m pip install -r requirements.txt
+
+cd ..\tests
+python -m pip install -r ..\generator\requirements.txt
+python -m pip install pandas matplotlib
+
+cd ..
+
+
+KROK 3: ZAAPLIKUJ INIT DLA NEO4J (CONSTRAINTS/INDEKSY)
+------------------------------------------------------
+UWAGA: W POWERSHELL nie uzywamy "<", tylko potok z Get-Content.
+
+Get-Content .\db\neo4j\init.cypher | docker exec -i neo4j_events cypher-shell -u neo4j -p test1234
+
+
+KROK 4: GENERUJ DANE
+--------------------
+cd generator
+
+Small:
+python generate.py --size small
+
+Medium:
+python generate.py --size medium
+
+Large:
+python generate.py --size large
+
+
+KROK 5: IMPORT DANYCH DO 4 BAZ
+------------------------------
+Opcja A (wszystkie 4 bazy):
+python run_all.py --size small --skip-generate
+
+Opcja B (tylko 1 baza):
+python run_all.py --size small --skip-generate --only postgres
+python run_all.py --size small --skip-generate --only mysql
+python run_all.py --size small --skip-generate --only mongo
+python run_all.py --size small --skip-generate --only neo4j
+
+cd ..
+
+
+KROK 6: TESTY WYDAJNOSCIOWE CRUD + WYKRESY
+------------------------------------------
+cd tests
+python run_tests.py --phase both --size small
+
+Wyniki:
+- CSV i wykresy beda w folderze: tests\results\
+
+
+KROK 7: EXPLAIN / PROFILE (BEZ I Z INDEKSAMI)
+----------------------------------------------
+cd tests
+python run_explain.py --phase both
+
+Wyniki:
+- tests\results\explain_without_indexes.json
+- tests\results\explain_with_indexes.json
+
+
+KROK 8: PRZYDATNE KOMENDY KONTROLNE
+-----------------------------------
+Podstawowe licznosci danych:
+docker exec -i pg_events_container psql -U admin -d eventsdb -c "SELECT 'users' t, count(*) c FROM users UNION ALL SELECT 'events', count(*) FROM events UNION ALL SELECT 'tickets', count(*) FROM tickets UNION ALL SELECT 'bookings', count(*) FROM bookings UNION ALL SELECT 'reviews', count(*) FROM reviews;"
+docker exec -i mysql_events_container mysql -uroot -proot123 eventsdb -e "SELECT 'users' t, count(*) c FROM users UNION ALL SELECT 'events', count(*) FROM events UNION ALL SELECT 'tickets', count(*) FROM tickets UNION ALL SELECT 'bookings', count(*) FROM bookings UNION ALL SELECT 'reviews', count(*) FROM reviews;"
+docker exec -i mongo_events_container mongosh --quiet --eval "db=db.getSiblingDB('eventsdb'); ['users','events','bookings','reviews'].forEach(c=>print(c+': '+db[c].countDocuments({})))"
+docker exec -i neo4j_events_container cypher-shell -u neo4j -p test1234 "MATCH (u:User) RETURN count(u) AS users; MATCH (e:Event) RETURN count(e) AS events; MATCH (t:Ticket) RETURN count(t) AS tickets; MATCH (b:Booking) RETURN count(b) AS bookings; MATCH (p:Payment) RETURN count(p) AS payments; MATCH (z:Zone) RETURN count(z) AS zones;"
+
+
+TYPOWE PROBLEMY
+---------------
+1) Neo4j init w PowerShell:
+   - nie dziala "< db/neo4j/init.cypher"
+   - uzyj:
+     Get-Content .\db\neo4j\init.cypher | docker exec -i neo4j_events_container cypher-shell -u neo4j -p test1234
+
+2) Port zajety:
+   - sprawdz czy masz inne instancje baz uruchomione lokalnie.
+
+3) Brak wykresow:
+   - doinstaluj:
+     python -m pip install pandas matplotlib
+
+
+KONIEC
+------
+Po tych krokach masz:
+- wygenerowane dane,
+- zaimportowane dane do 4 baz,
+- wyniki CRUD (CSV + PNG),
+- plany EXPLAIN/PROFILE (JSON).
