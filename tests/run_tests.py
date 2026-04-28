@@ -156,6 +156,9 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     .tabs {{
       display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
     }}
+    .top-controls {{
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;
+    }}
     .tab-btn {{
       border: 1px solid #c8c8c8; background: #efefef; padding: 8px 14px; border-radius: 8px;
       cursor: pointer; font-weight: 600;
@@ -164,14 +167,24 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     .filters {{
       display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
     }}
+    .metric-control {{
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid #d2d2d2; background: #fff; border-radius: 6px; padding: 6px 10px;
+    }}
+    .metric-control label {{ font-size: 13px; color: var(--muted); }}
     select {{
       border: 1px solid #d2d2d2; background: #fff; border-radius: 6px; padding: 7px 10px; min-width: 260px;
     }}
+    #metric-filter {{ min-width: 170px; }}
+    .chart-note {{ margin: 4px 0 10px 0; color: var(--muted); font-size: 12px; }}
     .legend {{
       display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 10px 0; color: #444;
     }}
     .legend-item {{ display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }}
     .dot {{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }}
+    .chart-box-sm {{ height: 180px; }}
+    .chart-box-md {{ height: 260px; }}
+    .chart-box-lg {{ height: 520px; }}
     .card {{
       background: var(--card);
       border: 1px solid var(--line);
@@ -208,8 +221,17 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     <h1>CRUD Dashboard</h1>
     <div class="subtitle">Rozmiar: <strong>{size.upper()}</strong> · źródło: pliki CSV w folderze <code>tests/results</code></div>
 
-    <div class="tabs" id="tabs"></div>
-    <div class="filters">
+    <div class="top-controls">
+      <div class="tabs" id="tabs"></div>
+      <div class="metric-control">
+        <label for="metric-filter">Metryka:</label>
+        <select id="metric-filter">
+          <option value="avg">Srednia</option>
+          <option value="median">Mediana</option>
+        </select>
+      </div>
+    </div>
+    <div class="filters" id="scenario-filters">
       <select id="operation-filter"></select>
       <select id="phase-filter"></select>
     </div>
@@ -217,30 +239,48 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 
     <section id="tab-overview" class="tab-content">
       <div class="card">
-        <canvas id="chart-overview" height="120"></canvas>
+        <h3>Przegląd CRUD (średni czas per operacja i baza)</h3>
+        <p class="chart-note">Wartosc slupka = srednia/mediana z 6 scenariuszy danej operacji (CREATE/READ/UPDATE/DELETE) dla bazy; kazdy scenariusz korzysta z avg_time_s (srednia z 3 prob).</p>
+        <div class="chart-box-md"><canvas id="chart-overview"></canvas></div>
       </div>
       <div class="card">
         <h3>Najlepsza baza per operacja</h3>
+        <p class="chart-note">Najlepsza baza = najnizsza wartosc dla operacji po agregacji (srednia/mediana) z odpowiadajacych jej 6 scenariuszy.</p>
         <div class="grid-4" id="kpi-best"></div>
       </div>
       <div class="card">
+        <h3>Ranking zwycięstw (najszybsza baza per scenariusz)</h3>
+        <p class="chart-note">Wygrana = najnizsze avg_time_s w scenariuszu (avg_time_s to srednia z 3 prob). Ranking liczy wygrane po wszystkich scenariuszach.</p>
+        <div class="table-wrap">
+          <table id="table-wins">
+            <thead>
+              <tr><th>Miejsce</th><th>Baza</th><th>Wygrane</th><th>Udział</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
         <h3>Sumaryczny czas wszystkich scenariuszy per baza</h3>
-        <canvas id="chart-total" height="90"></canvas>
+        <p class="chart-note">Suma avg_time_s po wszystkich scenariuszach dla bazy (pokazuje laczne obciazenie testami dla danej fazy).</p>
+        <div class="chart-box-sm"><canvas id="chart-total"></canvas></div>
       </div>
     </section>
 
     <section id="tab-h1" class="tab-content">
       <div class="grid-2">
-        <div class="card"><canvas id="chart-h1-create" height="120"></canvas></div>
-        <div class="card"><canvas id="chart-h1-read" height="120"></canvas></div>
-        <div class="card"><canvas id="chart-h1-update" height="120"></canvas></div>
-        <div class="card"><canvas id="chart-h1-delete" height="120"></canvas></div>
+        <div class="card"><h3>CREATE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia/mediana z avg_time_s scenariuszy S1-S6, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-create"></canvas></div></div>
+        <div class="card"><h3>READ - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia/mediana z avg_time_s scenariuszy S7-S12, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-read"></canvas></div></div>
+        <div class="card"><h3>UPDATE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia/mediana z avg_time_s scenariuszy S13-S18, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-update"></canvas></div></div>
+        <div class="card"><h3>DELETE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia/mediana z avg_time_s scenariuszy S19-S24, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-delete"></canvas></div></div>
       </div>
     </section>
 
     <section id="tab-scenarios" class="tab-content">
       <div class="card">
-        <canvas id="chart-scenarios" height="500"></canvas>
+        <h3>Porównanie baz per scenariusz</h3>
+        <p class="chart-note">Kazdy slupek to avg_time_s danego scenariusza i bazy (avg_time_s = srednia z 3 prob: try_1, try_2, try_3).</p>
+        <div class="chart-box-lg"><canvas id="chart-scenarios"></canvas></div>
       </div>
       <div class="card">
         <h3>Zwycięzca per scenariusz</h3>
@@ -257,7 +297,9 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 
     <section id="tab-json" class="tab-content">
       <div class="card">
-        <canvas id="chart-json" height="120"></canvas>
+        <h3>JSON vs zwykłe scenariusze</h3>
+        <p class="chart-note">Porownanie grup: JSON (S3, S11, S17) vs zwykle (pozostale scenariusze); wartosc = srednia/mediana avg_time_s w grupie.</p>
+        <div class="chart-box-md"><canvas id="chart-json"></canvas></div>
       </div>
       <div class="card">
         <h3>Podsumowanie JSON vs zwykłe</h3>
@@ -308,6 +350,19 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       if (!vals.length) return null;
       return vals.reduce((a, b) => a + b, 0) / vals.length;
     }}
+    function median(vals) {{
+      if (!vals.length) return null;
+      const sorted = [...vals].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      if (sorted.length % 2 === 0) return (sorted[mid - 1] + sorted[mid]) / 2;
+      return sorted[mid];
+    }}
+    function aggregate(vals, metric) {{
+      return metric === "median" ? median(vals) : avg(vals);
+    }}
+    function metricLabel(metric) {{
+      return metric === "median" ? "mediana" : "srednia";
+    }}
     function by(filters = {{}}) {{
       return records.filter(r => {{
         if (filters.phase && filters.phase !== "all" && r.phase !== filters.phase) return false;
@@ -315,7 +370,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         return true;
       }});
     }}
-    function groupedAvg(rows, keyFn) {{
+    function groupedMetric(rows, keyFn, metric) {{
       const buckets = new Map();
       for (const r of rows) {{
         const key = keyFn(r);
@@ -323,7 +378,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         buckets.get(key).push(r.avg_time_s);
       }}
       const out = {{}};
-      for (const [k, vals] of buckets.entries()) out[k] = avg(vals);
+      for (const [k, vals] of buckets.entries()) out[k] = aggregate(vals, metric);
       return out;
     }}
     function setLegend() {{
@@ -332,20 +387,30 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       ).join("");
     }}
 
+    function activeTabId() {{
+      return document.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    }}
+
+    function setActiveTab(tabId) {{
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      document.getElementById(`tab-${{tabId}}`).classList.add("active");
+
+      // Filtry są dostępne wyłącznie dla "Scenariusze szczegółowo"
+      const filtersEl = document.getElementById("scenario-filters");
+      filtersEl.style.display = tabId === "scenarios" ? "flex" : "none";
+      renderAll();
+    }}
+
     function initTabs() {{
       const tabsEl = document.getElementById("tabs");
-      tabsEl.innerHTML = TAB_DEF.map((t, i) =>
-        `<button class="tab-btn ${{i === 0 ? "active" : ""}}" data-tab="${{t.id}}">${{t.label}}</button>`
+      tabsEl.innerHTML = TAB_DEF.map((t) =>
+        `<button class="tab-btn" data-tab="${{t.id}}">${{t.label}}</button>`
       ).join("");
       document.querySelectorAll(".tab-btn").forEach(btn => {{
-        btn.addEventListener("click", () => {{
-          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-          document.getElementById(`tab-${{btn.dataset.tab}}`).classList.add("active");
-        }});
+        btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
       }});
-      document.getElementById("tab-overview").classList.add("active");
+      setActiveTab("overview");
     }}
 
     function initFilters() {{
@@ -355,23 +420,50 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       phaseSel.innerHTML = `
         <option value="with_indexes">Z indeksami</option>
         <option value="without_indexes">Bez indeksów</option>
-        <option value="all">Obie fazy</option>
       `;
       opSel.value = "all";
       phaseSel.value = "with_indexes";
       opSel.addEventListener("change", renderAll);
       phaseSel.addEventListener("change", renderAll);
+      document.getElementById("metric-filter").addEventListener("change", renderAll);
     }}
 
-    function baseBarOptions(indexAxis = "x") {{
+    function baseBarOptionsMs(indexAxis = "x", xTitle = "", yTitle = "Czas [ms]") {{
       return {{
         responsive: true,
         maintainAspectRatio: false,
+        animation: {{ duration: 0 }},
         indexAxis,
         plugins: {{ legend: {{ labels: {{ boxWidth: 12 }} }} }},
         scales: {{
-          y: {{ ticks: {{ callback: (v) => `${{v}} ms` }} }},
-          x: {{ ticks: {{ autoSkip: false }} }},
+          y: {{
+            title: {{ display: !!yTitle, text: yTitle }},
+            beginAtZero: true,
+            ticks: {{ callback: (v) => `${{v}} ms` }},
+          }},
+          x: {{
+            title: {{ display: !!xTitle, text: xTitle }},
+            ticks: {{ autoSkip: false }},
+          }},
+        }},
+      }};
+    }}
+
+    function scenarioHorizontalOptions() {{
+      return {{
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: {{ legend: {{ labels: {{ boxWidth: 12 }} }} }},
+        scales: {{
+          x: {{
+            title: {{ display: true, text: "Czas [ms]" }},
+            ticks: {{ callback: (v) => `${{v}} ms` }},
+          }},
+          y: {{
+            title: {{ display: true, text: "Scenariusz" }},
+            ticks: {{ autoSkip: false }},
+          }},
         }},
       }};
     }}
@@ -381,14 +473,14 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       charts[id] = new Chart(document.getElementById(id), cfg);
     }}
 
-    function renderOverview(filters) {{
-      const rows = by(filters);
+    function renderOverview(metric) {{
+      const rows = by({{ phase: "with_indexes", operation: "all" }});
       const perDbOp = {{}};
       for (const db of DBS) {{
         perDbOp[db] = {{}};
         for (const op of OPS) {{
           const vals = rows.filter(r => r.db === db && r.operation === op).map(r => r.avg_time_s);
-          perDbOp[db][op] = avg(vals);
+          perDbOp[db][op] = aggregate(vals, metric);
         }}
       }}
       makeChart("chart-overview", {{
@@ -403,7 +495,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
             borderWidth: 1,
           }})),
         }},
-        options: baseBarOptions("x"),
+        options: baseBarOptionsMs("x", "Operacja", `Czas [ms] (${{metricLabel(metric)}})`),
       }});
 
       const kpi = document.getElementById("kpi-best");
@@ -423,6 +515,25 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         `;
       }}).join("");
 
+      const scenarioIds = [...new Set(rows.map(r => r.scenario_id))].sort((a, b) => a - b);
+      const wins = Object.fromEntries(DBS.map(db => [db, 0]));
+      for (const sid of scenarioIds) {{
+        const rowsSid = rows.filter(r => r.scenario_id === sid).sort((a, b) => a.avg_time_s - b.avg_time_s);
+        if (rowsSid.length) wins[rowsSid[0].db] += 1;
+      }}
+      const ranking = DBS.map(db => ({{
+        db,
+        wins: wins[db],
+        share: scenarioIds.length ? (wins[db] / scenarioIds.length) * 100 : 0,
+      }})).sort((a, b) => b.wins - a.wins);
+      const winsBody = document.querySelector("#table-wins tbody");
+      winsBody.innerHTML = ranking.map((r, idx) => `<tr>
+        <td>${{idx + 1}}</td>
+        <td style="color:${{COLORS[r.db]}};font-weight:600">${{r.db}}</td>
+        <td>${{r.wins}}</td>
+        <td>${{r.share.toFixed(1)}}%</td>
+      </tr>`).join("");
+
       const sumByDb = {{}};
       for (const db of DBS) {{
         const vals = rows.filter(r => r.db === db).map(r => r.avg_time_s);
@@ -440,12 +551,11 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
             borderWidth: 1,
           }}]
         }},
-        options: baseBarOptions("x"),
+        options: baseBarOptionsMs("x", "Baza danych", "Czas [ms]"),
       }});
     }}
 
-    function renderH1(operationFilter) {{
-      const opsToShow = operationFilter === "all" ? OPS : [operationFilter];
+    function renderH1(metric) {{
       const ids = {{
         CREATE: "chart-h1-create",
         READ: "chart-h1-read",
@@ -453,14 +563,11 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         DELETE: "chart-h1-delete",
       }};
       for (const op of OPS) {{
-        const el = document.getElementById(ids[op]).parentElement.parentElement;
-        el.style.display = opsToShow.includes(op) ? "block" : "none";
-
         const withRows = by({{ phase: "with_indexes", operation: op }});
         const withoutRows = by({{ phase: "without_indexes", operation: op }});
 
-        const dWith = groupedAvg(withRows, r => r.db);
-        const dWithout = groupedAvg(withoutRows, r => r.db);
+        const dWith = groupedMetric(withRows, r => r.db, metric);
+        const dWithout = groupedMetric(withoutRows, r => r.db, metric);
 
         makeChart(ids[op], {{
           type: "bar",
@@ -473,6 +580,8 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
                 backgroundColor: "#d95f5f99",
                 borderColor: "#d95f5f",
                 borderWidth: 1,
+                categoryPercentage: 0.7,
+                barPercentage: 0.9,
               }},
               {{
                 label: "Z indeksami",
@@ -480,10 +589,12 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
                 backgroundColor: "#4caf5099",
                 borderColor: "#4caf50",
                 borderWidth: 1,
+                categoryPercentage: 0.7,
+                barPercentage: 0.9,
               }},
             ],
           }},
-          options: baseBarOptions("x"),
+          options: baseBarOptionsMs("x", "Baza danych", `Czas [ms] (${{metricLabel(metric)}})`),
         }});
       }}
     }}
@@ -517,7 +628,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
             }};
           }}),
         }},
-        options: baseBarOptions("y"),
+        options: scenarioHorizontalOptions(),
       }});
 
       const tbody = document.querySelector("#table-winners tbody");
@@ -540,13 +651,13 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       }}).join("");
     }}
 
-    function renderJson(filters) {{
-      const rows = by(filters);
+    function renderJson(metric) {{
+      const rows = by({{ phase: "with_indexes", operation: "all" }});
       const nonJsonRows = rows.filter(r => !r.json_related);
       const jsonRows = rows.filter(r => r.json_related);
 
-      const jsonByDb = groupedAvg(jsonRows, r => r.db);
-      const nonJsonByDb = groupedAvg(nonJsonRows, r => r.db);
+      const jsonByDb = groupedMetric(jsonRows, r => r.db, metric);
+      const nonJsonByDb = groupedMetric(nonJsonRows, r => r.db, metric);
 
       makeChart("chart-json", {{
         type: "bar",
@@ -569,7 +680,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
             }},
           ],
         }},
-        options: baseBarOptions("x"),
+        options: baseBarOptionsMs("x", "Baza danych", `Czas [ms] (${{metricLabel(metric)}})`),
       }});
 
       const tbody = document.querySelector("#table-json tbody");
@@ -586,20 +697,26 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     }}
 
     function renderAll() {{
+      const tab = activeTabId();
+      const metric = document.getElementById("metric-filter").value;
       const filters = {{
         operation: document.getElementById("operation-filter").value,
         phase: document.getElementById("phase-filter").value,
       }};
-      renderOverview(filters);
-      renderH1(filters.operation);
-      renderScenarioChart(filters);
-      renderJson(filters);
+      if (tab === "overview") {{
+        renderOverview(metric);
+      }} else if (tab === "h1") {{
+        renderH1(metric);
+      }} else if (tab === "scenarios") {{
+        renderScenarioChart(filters);
+      }} else if (tab === "json") {{
+        renderJson(metric);
+      }}
     }}
 
-    initTabs();
     initFilters();
+    initTabs();
     setLegend();
-    renderAll();
   </script>
 </body>
 </html>

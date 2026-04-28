@@ -337,10 +337,14 @@ def s17_update_json_field(conn) -> float:
         cur = conn.cursor()
         cur.execute("""
             UPDATE events
-            SET additional_info = JSON_ARRAY_APPEND(
-                COALESCE(additional_info, JSON_OBJECT()),
-                '$.languages', 'DE'
-            )
+            SET additional_info = CASE
+                WHEN additional_info IS NULL THEN JSON_OBJECT('languages', JSON_ARRAY('DE'))
+                WHEN JSON_EXTRACT(additional_info, '$.languages') IS NULL
+                    THEN JSON_SET(additional_info, '$.languages', JSON_ARRAY('DE'))
+                WHEN JSON_CONTAINS(JSON_EXTRACT(additional_info, '$.languages'), JSON_QUOTE('DE'))
+                    THEN additional_info
+                ELSE JSON_ARRAY_APPEND(additional_info, '$.languages', 'DE')
+            END
             WHERE id = %s
         """, (event_id,))
         conn.commit()
@@ -510,6 +514,7 @@ INDEXES = [
     "CREATE INDEX idx_events_venue     ON events(venue_id)",
     "CREATE INDEX idx_tickets_event    ON tickets(event_id)",
     "CREATE INDEX idx_tickets_zone     ON tickets(zone_id)",
+    "CREATE INDEX idx_tickets_type     ON tickets(ticket_type)",
     "CREATE INDEX idx_tickets_status   ON tickets(status)",
     "CREATE INDEX idx_bookings_user    ON bookings(user_id)",
     "CREATE INDEX idx_bookings_status  ON bookings(status)",
@@ -528,6 +533,7 @@ DROP_INDEXES = [
     "DROP INDEX idx_events_venue    ON events",
     "DROP INDEX idx_tickets_event   ON tickets",
     "DROP INDEX idx_tickets_zone    ON tickets",
+    "DROP INDEX idx_tickets_type    ON tickets",
     "DROP INDEX idx_tickets_status  ON tickets",
     "DROP INDEX idx_bookings_user   ON bookings",
     "DROP INDEX idx_bookings_status ON bookings",

@@ -236,7 +236,9 @@ def s12_select_tickets_with_lounge(db) -> float:
     def fn():
         pipeline = [
             {"$unwind": "$items"},
-            {"$group": {"_id": "$items.event_id", "bookings_count": {"$sum": 1}}},
+            # Zliczaj unikalne bookingi per event (spojne z SQL COUNT(DISTINCT b.id))
+            {"$group": {"_id": {"event_id": "$items.event_id", "booking_id": "$_id"}}},
+            {"$group": {"_id": "$_id.event_id", "bookings_count": {"$sum": 1}}},
             {"$sort": {"bookings_count": -1}},
             {"$limit": 20},
         ]
@@ -278,7 +280,7 @@ def s14_update_ticket_quantity(db) -> float:
             {"$inc": {"zones.$[z].tickets.$[t].available_quantity": -1}},
             array_filters=[
                 {"z.zone_id": zone_id},
-                {"t.ticket_id": ticket_id}
+                {"t.ticket_id": ticket_id, "t.available_quantity": {"$gt": 0}}
             ]
         )
     return measure(fn)
@@ -323,12 +325,8 @@ def s17_update_json_field(db) -> float:
 
 def s18_update_vip_prices(db) -> float:
     def fn():
-        list(db.events.aggregate([
-            {"$unwind": "$zones"},
-            {"$unwind": "$zones.tickets"},
-            {"$match": {"zones.tickets.ticket_type": "VIP"}}
-        ]))
-        # Aktualizuj przez pipeline
+        # Mierz tylko operacje UPDATE (bez dodatkowego skanowania aggregate),
+        # aby scenariusz byl porownywalny z innymi bazami.
         db.events.update_many(
             {"zones.tickets.ticket_type": "VIP"},
             [{"$set": {"zones": {"$map": {
@@ -485,6 +483,7 @@ def create_indexes():
     db.events.create_index([("category", ASCENDING)])
     db.events.create_index([("venue.city", ASCENDING)])
     db.events.create_index([("additional_info.age_limit", ASCENDING)])
+    db.events.create_index([("zones.tickets.ticket_type", ASCENDING)])
     db.events.create_index([("zones.tickets.perks.lounge_access", ASCENDING)])
     db.bookings.create_index([("user_id", ASCENDING)])
     db.bookings.create_index([("status", ASCENDING)])

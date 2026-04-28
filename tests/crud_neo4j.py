@@ -256,7 +256,7 @@ def s12_select_tickets_with_lounge(driver) -> float:
         with driver.session() as s:
             list(s.run("""
                 MATCH (:User)-[:MADE_BOOKING]->(b:Booking)-[:CONTAINS]->(:Ticket)-[:FOR_EVENT]->(e:Event)
-                RETURN e.event_id AS event_id, e.name AS event_name, count(b) AS bookings_count
+                RETURN e.event_id AS event_id, e.name AS event_name, count(DISTINCT b) AS bookings_count
                 ORDER BY bookings_count DESC
                 LIMIT 20
             """))
@@ -304,7 +304,12 @@ def s14_update_ticket_quantity(driver) -> float:
 def s15_update_100_events_status(driver) -> float:
     def fn():
         with driver.session() as s:
-            rows = list(s.run("MATCH (e:Event) RETURN e.event_id AS eid LIMIT 100"))
+            rows = list(s.run("""
+                MATCH (e:Event)
+                WITH e ORDER BY rand()
+                RETURN e.event_id AS eid
+                LIMIT 100
+            """))
             ids  = [r["eid"] for r in rows]
             s.run("""
                 UNWIND $ids AS eid

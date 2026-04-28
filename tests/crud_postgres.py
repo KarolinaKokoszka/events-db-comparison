@@ -340,9 +340,15 @@ def s17_update_json_field(conn) -> float:
             cur.execute("""
                 UPDATE events
                 SET additional_info = jsonb_set(
-                    COALESCE(additional_info, '{}'),
+                    COALESCE(additional_info, '{}'::jsonb),
                     '{languages}',
-                    (COALESCE(additional_info->'languages', '[]') || '"DE"'::jsonb)
+                    (
+                        SELECT to_jsonb(array_agg(DISTINCT lang))
+                        FROM jsonb_array_elements_text(
+                            COALESCE(additional_info->'languages', '[]'::jsonb) || '["DE"]'::jsonb
+                        ) AS t(lang)
+                    ),
+                    true
                 )
                 WHERE id = %s
             """, (event_id,))
@@ -545,6 +551,7 @@ INDEXES = [
     # tickets
     "CREATE INDEX IF NOT EXISTS idx_tickets_event  ON tickets(event_id)",
     "CREATE INDEX IF NOT EXISTS idx_tickets_zone   ON tickets(zone_id)",
+    "CREATE INDEX IF NOT EXISTS idx_tickets_type   ON tickets(ticket_type)",
     "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)",
     "CREATE INDEX IF NOT EXISTS idx_tickets_perks  ON tickets USING GIN (perks)",
     # bookings
@@ -567,6 +574,7 @@ DROP_INDEXES = [
     "DROP INDEX IF EXISTS idx_events_add_info",
     "DROP INDEX IF EXISTS idx_tickets_event",
     "DROP INDEX IF EXISTS idx_tickets_zone",
+    "DROP INDEX IF EXISTS idx_tickets_type",
     "DROP INDEX IF EXISTS idx_tickets_status",
     "DROP INDEX IF EXISTS idx_tickets_perks",
     "DROP INDEX IF EXISTS idx_bookings_user",
