@@ -131,6 +131,9 @@ def run_phase(phase: str, size: str):
 def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     records_json = json.dumps(records, ensure_ascii=False)
     scenarios_json = json.dumps(scenarios, ensure_ascii=False)
+    size_totals = {"small": 500_000, "medium": 1_000_000, "large": 10_000_000}
+    size_total = size_totals.get(size)
+    size_meta = f"Wielkosc zbioru: {size_total:,} rekordow".replace(",", " ") if size_total else "Wielkosc zbioru: -"
     return f"""<!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -141,7 +144,8 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
   <style>
     :root {{
       --pg: #336791; --my: #F29111; --mo: #47A248; --n4: #008CC1;
-      --line: #d9d9d9; --bg: #f7f7f8; --card: #ffffff; --text: #252525; --muted: #6c6c6c;
+      --header: #1f2f57;
+      --line: #d9dce6; --bg: #f2f4f8; --card: #ffffff; --text: #1e2d4a; --muted: #627091;
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -151,31 +155,92 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       font-family: Segoe UI, Arial, sans-serif;
     }}
     .wrap {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
-    h1 {{ margin: 0 0 6px 0; font-size: 24px; }}
-    .subtitle {{ color: var(--muted); margin-bottom: 14px; }}
+    .hero {{
+      background: linear-gradient(135deg, #1f2f57 0%, #293f74 100%);
+      color: #f4f7ff;
+      border-radius: 14px;
+      padding: 16px 18px 0 18px;
+      margin-bottom: 12px;
+    }}
+    .hero-top {{
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+      margin-bottom: 8px;
+    }}
+    .hero-title {{
+      margin: 0 0 4px 0;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #f2f6ff;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+    }}
+    .hero-meta {{
+      color: #c7d7ff;
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+    }}
+    .size-chip {{
+      border: 1px solid #6f93de; color: #edf3ff; border-radius: 14px;
+      font-weight: 600; font-size: 12px; padding: 3px 10px;
+      background: rgba(255, 255, 255, 0.08);
+    }}
     .tabs {{
-      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+      display: flex; gap: 8px; margin-bottom: 0; flex-wrap: wrap;
     }}
     .top-controls {{
-      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;
+      display: flex; gap: 10px; margin-bottom: 0; flex-wrap: wrap; align-items: flex-end;
     }}
     .tab-btn {{
-      border: 1px solid #c8c8c8; background: #efefef; padding: 8px 14px; border-radius: 8px;
-      cursor: pointer; font-weight: 600;
+      border: 1px solid #5470ad; background: rgba(255, 255, 255, 0.04); color: #e5eeff;
+      border-bottom: 0;
+      padding: 8px 14px; border-radius: 9px 9px 0 0; cursor: pointer; font-weight: 600;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
     }}
-    .tab-btn.active {{ background: #ffffff; border-color: #8c8c8c; }}
+    .tab-btn:hover {{ background: rgba(255, 255, 255, 0.12); border-color: #7f9ddf; }}
+    .tab-btn.active {{ background: var(--bg); color: var(--text); border-color: #cfd5e4; border-bottom: 0; }}
     .filters {{
       display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
     }}
     .metric-control {{
-      display: flex; align-items: center; gap: 8px;
-      border: 1px solid #d2d2d2; background: #fff; border-radius: 6px; padding: 6px 10px;
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      padding: 0;
+      color: #ecf2ff;
+      margin-left: auto;
+      margin-right: 4px;
+      margin-bottom: 8px;
     }}
-    .metric-control label {{ font-size: 13px; color: var(--muted); }}
+    .metric-label {{ font-size: 12px; color: #d7e2ff; font-weight: 700; }}
+    .metric-switch {{
+      display: inline-flex;
+      border: 1px solid #6f89c8;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+    }}
+    .metric-btn {{
+      border: 0;
+      background: transparent;
+      color: #e7efff;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 72px;
+    }}
+    .metric-btn + .metric-btn {{ border-left: 1px solid #6f89c8; }}
+    .metric-btn.active {{
+      background: #e9eefb;
+      color: #20345f;
+    }}
     select {{
       border: 1px solid #d2d2d2; background: #fff; border-radius: 6px; padding: 7px 10px; min-width: 260px;
     }}
-    #metric-filter {{ min-width: 170px; }}
+    #metric-filter {{ display: none; }}
     .chart-note {{ margin: 4px 0 10px 0; color: var(--muted); font-size: 12px; }}
     .legend {{
       display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 10px 0; color: #444;
@@ -196,6 +261,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     .tab-content.active {{ display: block; }}
     .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
     .grid-4 {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }}
+    .overview-bottom {{ margin-bottom: 12px; }}
     .kpi {{
       border: 1px solid var(--line); border-radius: 8px; background: #fcfcfc; padding: 10px;
     }}
@@ -211,6 +277,13 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     }}
     th {{ background: #f2f2f2; }}
     .ok {{ color: #1f7a2f; font-weight: 600; }}
+    .op-chip {{
+      display: inline-block; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+      border: 1px solid #d3d8e5; color: #45516f; background: #f6f7fb;
+    }}
+    .op-create {{ background: #eef5ff; border-color: #d8e7ff; color: #355f95; }}
+    .op-update {{ background: #eef8ee; border-color: #d8edd8; color: #3f7442; }}
+    .op-read, .op-delete {{ background: #f1f2f5; border-color: #dfe2e8; color: #5a6071; }}
     @media (max-width: 1100px) {{
       .grid-2, .grid-4 {{ grid-template-columns: 1fr; }}
     }}
@@ -218,17 +291,24 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 </head>
 <body>
   <div class="wrap">
-    <h1>CRUD Dashboard</h1>
-    <div class="subtitle">Rozmiar: <strong>{size.upper()}</strong> · źródło: pliki CSV w folderze <code>tests/results</code></div>
-
-    <div class="top-controls">
-      <div class="tabs" id="tabs"></div>
-      <div class="metric-control">
-        <label for="metric-filter">Metryka:</label>
-        <select id="metric-filter">
-          <option value="avg">Srednia</option>
-          <option value="median">Mediana</option>
-        </select>
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <h1 class="hero-title">Porownanie wydajnosci baz danych</h1>
+          <div class="hero-meta">{size_meta}</div>
+        </div>
+        <span class="size-chip">{size.upper()}</span>
+      </div>
+      <div class="top-controls">
+        <div class="tabs" id="tabs"></div>
+        <div class="metric-control">
+          <span class="metric-label">Metryka</span>
+          <div class="metric-switch" id="metric-switch">
+            <button type="button" class="metric-btn active" data-metric="avg">Srednia</button>
+            <button type="button" class="metric-btn" data-metric="median">Mediana</button>
+          </div>
+          <input id="metric-filter" type="hidden" value="avg">
+        </div>
       </div>
     </div>
     <div class="filters" id="scenario-filters">
@@ -239,31 +319,33 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 
     <section id="tab-overview" class="tab-content">
       <div class="card">
-        <h3>Przegląd CRUD (średni czas per operacja i baza)</h3>
-        <p class="chart-note">Wartosc slupka = srednia/mediana z 6 scenariuszy danej operacji (CREATE/READ/UPDATE/DELETE) dla bazy; kazdy scenariusz korzysta z avg_time_s (srednia z 3 prob).</p>
-        <div class="chart-box-md"><canvas id="chart-overview"></canvas></div>
-      </div>
-      <div class="card">
         <h3>Najlepsza baza per operacja</h3>
         <p class="chart-note">Najlepsza baza = najnizsza wartosc dla operacji po agregacji (srednia/mediana) z odpowiadajacych jej 6 scenariuszy.</p>
         <div class="grid-4" id="kpi-best"></div>
       </div>
       <div class="card">
-        <h3>Ranking zwycięstw (najszybsza baza per scenariusz)</h3>
-        <p class="chart-note">Wygrana = najnizsze avg_time_s w scenariuszu (avg_time_s to srednia z 3 prob). Ranking liczy wygrane po wszystkich scenariuszach.</p>
-        <div class="table-wrap">
-          <table id="table-wins">
-            <thead>
-              <tr><th>Miejsce</th><th>Baza</th><th>Wygrane</th><th>Udział</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <h3>Przegląd CRUD (średni czas per operacja i baza)</h3>
+        <p class="chart-note">Wartosc slupka = srednia/mediana z 6 scenariuszy danej operacji (CREATE/READ/UPDATE/DELETE) dla bazy; kazdy scenariusz korzysta z avg_time_s (srednia z 3 prob).</p>
+        <div class="chart-box-md"><canvas id="chart-overview"></canvas></div>
       </div>
-      <div class="card">
-        <h3>Sumaryczny czas wszystkich scenariuszy per baza</h3>
-        <p class="chart-note">Suma avg_time_s po wszystkich scenariuszach dla bazy (pokazuje laczne obciazenie testami dla danej fazy).</p>
-        <div class="chart-box-sm"><canvas id="chart-total"></canvas></div>
+      <div class="grid-2 overview-bottom">
+        <div class="card">
+          <h3>Ranking zwycięstw (najszybsza baza per scenariusz)</h3>
+          <p class="chart-note">Wygrana = najnizsze avg_time_s w scenariuszu (avg_time_s to srednia z 3 prob). Ranking liczy wygrane po wszystkich scenariuszach.</p>
+          <div class="table-wrap">
+            <table id="table-wins">
+              <thead>
+                <tr><th>Miejsce</th><th>Baza</th><th>Wygrane</th><th>Udział</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Sumaryczny czas wszystkich scenariuszy per baza</h3>
+          <p class="chart-note">Suma avg_time_s po wszystkich scenariuszach dla bazy (pokazuje laczne obciazenie testami dla danej fazy).</p>
+          <div class="chart-box-sm"><canvas id="chart-total"></canvas></div>
+        </div>
       </div>
     </section>
 
@@ -399,6 +481,8 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       // Filtry są dostępne wyłącznie dla "Scenariusze szczegółowo"
       const filtersEl = document.getElementById("scenario-filters");
       filtersEl.style.display = tabId === "scenarios" ? "flex" : "none";
+      const legendEl = document.getElementById("legend");
+      legendEl.style.display = (tabId === "h1" || tabId === "json") ? "none" : "flex";
       renderAll();
     }}
 
@@ -425,7 +509,14 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       phaseSel.value = "with_indexes";
       opSel.addEventListener("change", renderAll);
       phaseSel.addEventListener("change", renderAll);
-      document.getElementById("metric-filter").addEventListener("change", renderAll);
+      document.querySelectorAll(".metric-btn").forEach(btn => {{
+        btn.addEventListener("click", () => {{
+          document.querySelectorAll(".metric-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById("metric-filter").value = btn.dataset.metric;
+          renderAll();
+        }});
+      }});
     }}
 
     function baseBarOptionsMs(indexAxis = "x", xTitle = "", yTitle = "Czas [ms]") {{
@@ -642,9 +733,10 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       tbody.innerHTML = winners.map(w => {{
         const meta = scenarioMap[String(w.scenario_id)];
         const name = meta ? `S${{w.scenario_id}}: ${{meta.name}}` : `S${{w.scenario_id}}`;
+        const opClass = `op-${{(w.operation || "").toLowerCase()}}`;
         return `<tr>
           <td>${{name}}</td>
-          <td>${{w.operation}}</td>
+          <td><span class="op-chip ${{opClass}}">${{w.operation}}</span></td>
           <td class="ok">${{w.db}}</td>
           <td>${{ms(w.avg_time_s)}}</td>
         </tr>`;
