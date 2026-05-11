@@ -18,7 +18,7 @@ WYMAGANIA
 
 KROK 0: PRZEJDZ DO FOLDERU PROJEKTU
 -----------------------------------
-cd "C:\Users\Marcin\OneDrive - Hauraton GmbH & Co. KG\Dokumente\STUDIA II\PK\ZTBD\Projekt\project-kopia"
+cd "C:\Users\Marcin\OneDrive - Hauraton GmbH & Co. KG\Dokumente\STUDIA II\PK\ZTBD\Projekt_v2\events-db-comparison"
 
 
 KROK 1: URUCHOM KONTENERY Z BAZAMI
@@ -35,14 +35,14 @@ Oczekiwane nazwy:
 - neo4j_events_container
 
 
-KROK 2: ZAINSTALUJ ZALEGZNOSCI PYTHON
--------------------------------------
+KROK 2: ZAINSTALUJ ZALEZNOSCI PYTHON
+------------------------------------
 cd generator
 python -m pip install -r requirements.txt
 
 cd ..\tests
 python -m pip install -r ..\generator\requirements.txt
-python -m pip install pandas matplotlib
+python -m pip install pandas
 
 cd ..
 
@@ -51,7 +51,7 @@ KROK 3: ZAAPLIKUJ INIT DLA NEO4J (CONSTRAINTS/INDEKSY)
 ------------------------------------------------------
 UWAGA: W POWERSHELL nie uzywamy "<", tylko potok z Get-Content.
 
-Get-Content .\db\neo4j\init.cypher | docker exec -i neo4j_events cypher-shell -u neo4j -p test1234
+Get-Content .\db\neo4j\init.cypher | docker exec -i neo4j_events_container cypher-shell -u neo4j -p test1234
 
 
 KROK 4: GENERUJ DANE
@@ -88,12 +88,14 @@ cd tests
 python run_tests.py --phase both --size small
 
 Wyniki:
-- CSV i wykresy beda w folderze: tests\results\
+- CSV i dashboard HTML beda w folderze: tests\results\
 
 
 KROK 7: EXPLAIN / PROFILE (BEZ I Z INDEKSAMI)
 ----------------------------------------------
-cd tests
+# Ten krok uruchamiasz z folderu tests.
+# Jesli jestes w katalogu glownym projektu, najpierw:
+# cd tests
 python run_explain.py --phase both
 
 Wyniki:
@@ -122,7 +124,7 @@ TYPOWE PROBLEMY
 
 3) Brak wykresow:
    - doinstaluj:
-     python -m pip install pandas matplotlib
+     python -m pip install pandas
 
 
 KONIEC
@@ -130,5 +132,5 @@ KONIEC
 Po tych krokach masz:
 - wygenerowane dane,
 - zaimportowane dane do 4 baz,
-- wyniki CRUD (CSV + PNG),
+- wyniki CRUD (CSV + dashboard HTML),
 - plany EXPLAIN/PROFILE (JSON).

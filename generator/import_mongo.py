@@ -283,6 +283,11 @@ def main():
     bulk_write(db["bookings"], bookings_docs)
     bulk_write(db["reviews"],  reviews_docs)
 
+    db["users"].drop_indexes()
+    db["events"].drop_indexes()
+    db["bookings"].drop_indexes()
+    db["reviews"].drop_indexes()
+
     # Indeksy
     print("\n📑 Tworzenie indeksów...")
     db["users"].create_index([("email", ASCENDING)],             unique=True, name="idx_users_email")

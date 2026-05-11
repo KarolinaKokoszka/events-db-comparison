@@ -40,9 +40,6 @@ def get_db_modules():
     }
 
 
-# ─────────────────────────────────────────────
-# ZAPIS WYNIKÓW DO CSV
-# ─────────────────────────────────────────────
 def save_csv(all_results: list, phase: str, size: str):
     os.makedirs(RESULTS_DIR, exist_ok=True)
     filename = os.path.join(RESULTS_DIR, f"results_{size}_{phase}.csv")
@@ -80,9 +77,6 @@ def save_csv(all_results: list, phase: str, size: str):
     return filename
 
 
-# ─────────────────────────────────────────────
-# FAZA TESTÓW
-# ─────────────────────────────────────────────
 def run_phase(phase: str, size: str):
     print(f"\n{'='*60}")
     print(f"  FAZA: {phase.upper()}  |  ROZMIAR: {size.upper()}")
@@ -90,7 +84,6 @@ def run_phase(phase: str, size: str):
 
     db_modules = get_db_modules()
 
-    # Zarządzaj indeksami
     if phase == "without_indexes":
         print("\n[INFO] Usuwanie indeksów ze wszystkich baz...")
         for name, module in db_modules.items():
@@ -107,7 +100,6 @@ def run_phase(phase: str, size: str):
             except Exception as e:
                 print(f"  [WARN] {name}: {e}")
 
-    # Uruchom testy
     all_results = []
     for db_name, module in db_modules.items():
         print(f"\n[RUN] {db_name}...")
@@ -120,14 +112,10 @@ def run_phase(phase: str, size: str):
         elapsed = time.time() - start
         print(f"  [TIME] {db_name}: {elapsed:.1f}s")
 
-    # Zapisz CSV
     csv_path = save_csv(all_results, phase, size)
     return csv_path
 
 
-# ─────────────────────────────────────────────
-# WYKRESY
-# ─────────────────────────────────────────────
 def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     records_json = json.dumps(records, ensure_ascii=False)
     scenarios_json = json.dumps(scenarios, ensure_ascii=False)
@@ -284,6 +272,12 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     .op-create {{ background: #eef5ff; border-color: #d8e7ff; color: #355f95; }}
     .op-update {{ background: #eef8ee; border-color: #d8edd8; color: #3f7442; }}
     .op-read, .op-delete {{ background: #f1f2f5; border-color: #dfe2e8; color: #5a6071; }}
+    .delta-controls {{ display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }}
+    .delta-mini-card {{ background:#f8f9fc; border:1px solid #e3e7f0; border-radius:10px; padding:12px 14px; }}
+    .delta-mini-title {{ font-size:13px; font-weight:800; margin-bottom:6px; }}
+    #table-top5 td:last-child, #table-bot5 td:last-child {{ font-weight:700; }}
+    .delta-pos {{ color: #1a7a3c; }}
+    .delta-neg {{ color: #b91c1c; }}
     @media (max-width: 1100px) {{
       .grid-2, .grid-4 {{ grid-template-columns: 1fr; }}
     }}
@@ -395,6 +389,59 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         </div>
       </div>
     </section>
+
+    <section id="tab-delta" class="tab-content">
+      <div class="card">
+        <h3>Wykres delta: zmiana czasu po dodaniu indeksów (% per scenariusz)</h3>
+        <p class="chart-note">
+          Wartość dodatnia (zielona) = indeks przyspiesza operację. Wartość ujemna (czerwona) = indeks spowalnia.
+          Delta [%] = (czas bez indeksów - czas z indeksami) / czas bez indeksów × 100.
+        </p>
+        <div class="delta-controls">
+          <label style="font-weight:700;color:var(--text);font-size:13px;">Baza danych:</label>
+          <select id="delta-db-filter" style="padding:6px 10px;border-radius:7px;border:1px solid #cfd5e4;font-size:13px;font-weight:600;background:#fff;color:var(--text);cursor:pointer;min-width:220px;">
+            <option value="ALL">Wszystkie</option>
+            <option value="PostgreSQL">PostgreSQL</option>
+            <option value="MySQL">MySQL</option>
+            <option value="MongoDB">MongoDB</option>
+            <option value="Neo4j">Neo4j</option>
+          </select>
+        </div>
+        <div id="delta-single-wrap" style="position:relative;height:420px;margin-top:10px;">
+          <canvas id="chart-delta"></canvas>
+        </div>
+        <div id="delta-all-wrap" style="display:none;margin-top:10px;">
+          <div class="grid-2" style="gap:12px;">
+            <div class="delta-mini-card"><div class="delta-mini-title" style="color:#336791;">PostgreSQL</div><div style="position:relative;height:340px;"><canvas id="chart-delta-pg"></canvas></div></div>
+            <div class="delta-mini-card"><div class="delta-mini-title" style="color:#F29111;">MySQL</div><div style="position:relative;height:340px;"><canvas id="chart-delta-my"></canvas></div></div>
+            <div class="delta-mini-card"><div class="delta-mini-title" style="color:#47A248;">MongoDB</div><div style="position:relative;height:340px;"><canvas id="chart-delta-mg"></canvas></div></div>
+            <div class="delta-mini-card"><div class="delta-mini-title" style="color:#008CC1;">Neo4j</div><div style="position:relative;height:340px;"><canvas id="chart-delta-n4"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:0;">
+        <div class="card">
+          <h3>TOP 5 - największa poprawa z indeksem</h3>
+          <p class="chart-note">Scenariusze (baza + operacja), dla których indeksy przyniosły największy zysk wydajnościowy.</p>
+          <div class="table-wrap">
+            <table id="table-top5">
+              <thead><tr><th>#</th><th>Scenariusz</th><th>Op.</th><th>Baza</th><th>Bez ind. [ms]</th><th>Z ind. [ms]</th><th>Δ [ms]</th><th>Δ [%]</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>TOP 5 - największe pogorszenie z indeksem</h3>
+          <p class="chart-note">Scenariusze (baza + operacja), dla których indeksy najbardziej wydłużyły czas wykonania.</p>
+          <div class="table-wrap">
+            <table id="table-bot5">
+              <thead><tr><th>#</th><th>Scenariusz</th><th>Op.</th><th>Baza</th><th>Bez ind. [ms]</th><th>Z ind. [ms]</th><th>Δ [ms]</th><th>Δ [%]</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -411,6 +458,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     const TAB_DEF = [
       {{ id: "overview", label: "Przegląd CRUD" }},
       {{ id: "h1", label: "Wpływ indeksów (H1)" }},
+      {{ id: "delta", label: "Wpływ indeksów (szczegóły)" }},
       {{ id: "scenarios", label: "Scenariusze szczegółowo" }},
       {{ id: "json", label: "JSON vs zwykłe" }},
     ];
@@ -478,7 +526,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
       document.getElementById(`tab-${{tabId}}`).classList.add("active");
 
-      // Filtry są dostępne wyłącznie dla "Scenariusze szczegółowo"
+      // Filtry pokazujemy tylko w zakladce scenariuszy.
       const filtersEl = document.getElementById("scenario-filters");
       filtersEl.style.display = tabId === "scenarios" ? "flex" : "none";
       const legendEl = document.getElementById("legend");
@@ -509,6 +557,8 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       phaseSel.value = "with_indexes";
       opSel.addEventListener("change", renderAll);
       phaseSel.addEventListener("change", renderAll);
+      const deltaDbSel = document.getElementById("delta-db-filter");
+      if (deltaDbSel) deltaDbSel.addEventListener("change", renderAll);
       document.querySelectorAll(".metric-btn").forEach(btn => {{
         btn.addEventListener("click", () => {{
           document.querySelectorAll(".metric-btn").forEach(b => b.classList.remove("active"));
@@ -788,6 +838,203 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       }}).join("");
     }}
 
+    function computeDeltas(dbFilter, opFilter = "ALL") {{
+      const deltas = [];
+      for (const sc of SCENARIOS) {{
+        if (opFilter !== "ALL" && sc.operation !== opFilter) continue;
+        for (const db of DBS) {{
+          if (dbFilter && db !== dbFilter) continue;
+          const wo = records.find(r => r.db === db && r.scenario_id === Number(sc.id) && r.phase === "without_indexes");
+          const wi = records.find(r => r.db === db && r.scenario_id === Number(sc.id) && r.phase === "with_indexes");
+          if (!wo || !wi) continue;
+          const woMs = wo.avg_time_s * 1000;
+          const wiMs = wi.avg_time_s * 1000;
+          const deltaPct = woMs > 0 ? ((woMs - wiMs) / woMs) * 100 : 0;
+          const deltaMs = woMs - wiMs;
+          deltas.push({{ db, sc, woMs, wiMs, deltaPct, deltaMs }});
+        }}
+      }}
+      return deltas;
+    }}
+
+    function buildDeltaChart(canvasId, db, sharedMinMax) {{
+      const deltas = computeDeltas(db, "ALL");
+      const labels = deltas.map(d => `S${{d.sc.id}}: ${{d.sc.name}}`);
+      const values = deltas.map(d => parseFloat(d.deltaPct.toFixed(1)));
+      const bgColors = values.map(v => v >= 0 ? "rgba(34,139,76,0.75)" : "rgba(185,28,28,0.75)");
+      const borderColors = values.map(v => v >= 0 ? "#166534" : "#7f1d1d");
+
+      if (charts[canvasId]) {{
+        charts[canvasId].destroy();
+        delete charts[canvasId];
+      }}
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+
+      charts[canvasId] = new Chart(ctx, {{
+        type: "bar",
+        data: {{
+          labels,
+          datasets: [{{
+            data: values,
+            backgroundColor: bgColors,
+            borderColor: borderColors,
+            borderWidth: 1,
+            borderRadius: 2,
+          }}],
+        }},
+        options: {{
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {{
+            legend: {{ display: false }},
+            tooltip: {{
+              callbacks: {{
+                label: (c) => {{
+                  const d = deltas[c.dataIndex];
+                  const sign = d.deltaPct >= 0 ? "▲ poprawa" : "▼ pogorszenie";
+                  return [
+                    ` ${{sign}}: ${{Math.abs(d.deltaPct).toFixed(1)}}%`,
+                    ` Bez: ${{d.woMs.toFixed(2)}} ms  Z: ${{d.wiMs.toFixed(2)}} ms`,
+                  ];
+                }}
+              }}
+            }}
+          }},
+          scales: {{
+            x: {{
+              min: sharedMinMax.min,
+              max: sharedMinMax.max,
+              grid: {{ color: "#e5e7eb" }},
+              ticks: {{ callback: v => v + "%", font: {{ size: 10 }} }},
+            }},
+            y: {{ ticks: {{ font: {{ size: 9 }}, autoSkip: false }}, grid: {{ display: false }} }},
+          }},
+        }},
+      }});
+    }}
+
+    function renderDelta() {{
+      const dbSel = document.getElementById("delta-db-filter");
+      const db = dbSel ? dbSel.value : "PostgreSQL";
+      const showAll = db === "ALL";
+
+      const singleWrap = document.getElementById("delta-single-wrap");
+      const allWrap = document.getElementById("delta-all-wrap");
+      singleWrap.style.display = showAll ? "none" : "block";
+      allWrap.style.display = showAll ? "block" : "none";
+
+      if (showAll) {{
+        const allVals = DBS.flatMap(d => computeDeltas(d, "ALL").map(x => x.deltaPct));
+        const pad = 5;
+        const sharedMinMax = {{
+          min: Math.floor(Math.min(...allVals) - pad),
+          max: Math.ceil(Math.max(...allVals) + pad),
+        }};
+        buildDeltaChart("chart-delta-pg", "PostgreSQL", sharedMinMax);
+        buildDeltaChart("chart-delta-my", "MySQL", sharedMinMax);
+        buildDeltaChart("chart-delta-mg", "MongoDB", sharedMinMax);
+        buildDeltaChart("chart-delta-n4", "Neo4j", sharedMinMax);
+      }} else {{
+        const deltas = computeDeltas(db, "ALL");
+        const labels = deltas.map(d => `S${{d.sc.id}}: ${{d.sc.name}}`);
+        const values = deltas.map(d => parseFloat(d.deltaPct.toFixed(1)));
+        const bgColors = values.map(v => v >= 0 ? "rgba(34,139,76,0.75)" : "rgba(185,28,28,0.75)");
+        const borderColors = values.map(v => v >= 0 ? "#166534" : "#7f1d1d");
+
+        if (charts["delta"]) {{
+          charts["delta"].destroy();
+          delete charts["delta"];
+        }}
+        const ctx = document.getElementById("chart-delta");
+        if (!ctx) return;
+
+        charts["delta"] = new Chart(ctx, {{
+          type: "bar",
+          data: {{
+            labels,
+            datasets: [{{
+              label: "Δ %",
+              data: values,
+              backgroundColor: bgColors,
+              borderColor: borderColors,
+              borderWidth: 1,
+              borderRadius: 3,
+            }}],
+          }},
+          options: {{
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {{
+              legend: {{ display: false }},
+              tooltip: {{
+                callbacks: {{
+                  label: (c) => {{
+                    const d = deltas[c.dataIndex];
+                    const sign = d.deltaPct >= 0 ? "▲ poprawa" : "▼ pogorszenie";
+                    return [
+                      ` ${{sign}}: ${{Math.abs(d.deltaPct).toFixed(1)}}%`,
+                      ` Bez indeksów: ${{d.woMs.toFixed(2)}} ms`,
+                      ` Z indeksami:  ${{d.wiMs.toFixed(2)}} ms`,
+                      ` Δ: ${{d.deltaMs >= 0 ? "-" : "+"}}${{Math.abs(d.deltaMs).toFixed(2)}} ms`,
+                    ];
+                  }}
+                }}
+              }}
+            }},
+            scales: {{
+              x: {{
+                grid: {{ color: "#e5e7eb" }},
+                ticks: {{ callback: v => v + "%", font: {{ size: 11 }} }},
+                title: {{
+                  display: true,
+                  text: "Zmiana czasu [%]  (dodatnia = szybciej z indeksem)",
+                  font: {{ size: 11, weight: "600" }},
+                }},
+              }},
+              y: {{ ticks: {{ font: {{ size: 10 }} }}, grid: {{ display: false }} }},
+            }},
+          }},
+        }});
+
+        const parent = ctx.parentElement;
+        if (parent) {{
+          parent.style.height = Math.max(320, deltas.length * 22) + "px";
+          charts["delta"].resize();
+        }}
+      }}
+
+      const allDeltas = computeDeltas(null, "ALL");
+      allDeltas.sort((a, b) => b.deltaPct - a.deltaPct);
+      const top5 = allDeltas.slice(0, 5);
+      const bot5 = allDeltas.slice(-5).reverse();
+
+      function fillTable(id, rows, isTop) {{
+        const tbody = document.querySelector(`#${{id}} tbody`);
+        if (!tbody) return;
+        tbody.innerHTML = rows.map((d, i) => {{
+          const pct = d.deltaPct;
+          const cls = isTop ? "delta-pos" : "delta-neg";
+          const sign = isTop ? "+" : "";
+          return `<tr>
+            <td><strong>${{i + 1}}</strong></td>
+            <td>S${{d.sc.id}}: ${{d.sc.name}}</td>
+            <td><span class="op-chip op-${{d.sc.operation.toLowerCase()}}">${{d.sc.operation}}</span></td>
+            <td><span style="font-weight:700;color:${{COLORS[d.db] || "#555"}}">${{d.db}}</span></td>
+            <td>${{d.woMs.toFixed(2)}}</td>
+            <td>${{d.wiMs.toFixed(2)}}</td>
+            <td class="${{cls}}">${{sign}}${{(-d.deltaMs).toFixed(2)}}</td>
+            <td class="${{cls}}">${{sign}}${{pct.toFixed(1)}}%</td>
+          </tr>`;
+        }}).join("");
+      }}
+
+      fillTable("table-top5", top5, true);
+      fillTable("table-bot5", bot5, false);
+    }}
+
     function renderAll() {{
       const tab = activeTabId();
       const metric = document.getElementById("metric-filter").value;
@@ -799,6 +1046,8 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
         renderOverview(metric);
       }} else if (tab === "h1") {{
         renderH1(metric);
+      }} else if (tab === "delta") {{
+        renderDelta();
       }} else if (tab === "scenarios") {{
         renderScenarioChart(filters);
       }} else if (tab === "json") {{
@@ -824,7 +1073,6 @@ def generate_charts(size: str):
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    # Wczytaj oba pliki CSV
     dfs = []
     for phase in ["without_indexes", "with_indexes"]:
         path = os.path.join(RESULTS_DIR, f"results_{size}_{phase}.csv")
@@ -857,9 +1105,6 @@ def generate_charts(size: str):
     print(f"\n[OK] Dashboard zapisany: {path}")
 
 
-# ─────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Orkiestrator testów CRUD – e-Ticket")
     parser.add_argument("--phase",

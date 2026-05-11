@@ -10,7 +10,7 @@ Każdy scenariusz ma:
 """
 
 SCENARIOS = [
-    # ─── CREATE (1-6) ───────────────────────────────────────
+    # CREATE (1-6)
     {
         "id": 1,
         "operation": "CREATE",
@@ -30,7 +30,7 @@ SCENARIOS = [
         "operation": "CREATE",
         "name": "Wstaw event z danymi JSON",
         "description": "INSERT eventu z polem additional_info (JSON): age_limit, parking, languages",
-        "json_related": True,   # ← dane półustrukturalne
+        "json_related": True,
     },
     {
         "id": 4,
@@ -54,7 +54,7 @@ SCENARIOS = [
         "json_related": False,
     },
 
-    # ─── READ (7-12) ─────────────────────────────────────────
+    # READ (7-12)
     {
         "id": 7,
         "operation": "READ",
@@ -88,7 +88,7 @@ SCENARIOS = [
         "operation": "READ",
         "name": "Filtr po polu JSON (age_limit)",
         "description": "SELECT eventów gdzie additional_info->age_limit = 18",
-        "json_related": True,   # ← dane półustrukturalne
+        "json_related": True,
     },
     {
         "id": 12,
@@ -98,7 +98,7 @@ SCENARIOS = [
         "json_related": False,
     },
 
-    # ─── UPDATE (13-18) ──────────────────────────────────────
+    # UPDATE (13-18)
     {
         "id": 13,
         "operation": "UPDATE",
@@ -132,7 +132,7 @@ SCENARIOS = [
         "operation": "UPDATE",
         "name": "Aktualizuj pole JSON (languages)",
         "description": "UPDATE additional_info – dodaj język do tablicy languages w evencie",
-        "json_related": True,   # ← dane półustrukturalne
+        "json_related": True,
     },
     {
         "id": 18,
@@ -142,7 +142,7 @@ SCENARIOS = [
         "json_related": False,
     },
 
-    # ─── DELETE (19-24) ──────────────────────────────────────
+    # DELETE (19-24)
     {
         "id": 19,
         "operation": "DELETE",
