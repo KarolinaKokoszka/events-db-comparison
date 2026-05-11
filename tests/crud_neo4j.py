@@ -370,23 +370,31 @@ def s18_update_vip_prices(driver) -> float:
 # DELETE 19-24
 # ════════════════════════════════════════════
 def s19_delete_review(driver) -> float:
+    rid = uuid.uuid4().hex[:12]
     with driver.session() as s:
-        row = s.run("""
-            MATCH (u:User)-[r:REVIEWED]->(e:Event)
-            RETURN u.user_id AS uid, e.event_id AS eid
-            SKIP toInteger(rand()*100) LIMIT 1
-        """).single()
-    if not row:
+        row_u = s.run(
+            "MATCH (u:User) RETURN u.user_id AS uid SKIP toInteger(rand()*100) LIMIT 1"
+        ).single()
+        row_e = s.run(
+            "MATCH (e:Event) RETURN e.event_id AS eid SKIP toInteger(rand()*100) LIMIT 1"
+        ).single()
+    if not row_u or not row_e:
         return 0.0
-    uid = row["uid"]
-    eid = row["eid"]
+    uid = row_u["uid"]
+    eid = row_e["eid"]
+    with driver.session() as s:
+        s.run("""
+            MATCH (u:User {user_id:$uid}), (e:Event {event_id:$eid})
+            MERGE (u)-[r:REVIEWED {test_review_id:$rid}]->(e)
+            SET r.rating = 5, r.comment = 'TEST_DELETE_REVIEW', r.created_at = $now
+        """, uid=uid, eid=eid, rid=rid, now=datetime.utcnow().isoformat())
 
     def fn():
         with driver.session() as s:
             s.run("""
-                MATCH (u:User {user_id:$uid})-[r:REVIEWED]->(e:Event {event_id:$eid})
+                MATCH (u:User {user_id:$uid})-[r:REVIEWED {test_review_id:$rid}]->(e:Event {event_id:$eid})
                 DELETE r
-            """, uid=uid, eid=eid)
+            """, uid=uid, eid=eid, rid=rid)
     return measure(fn)
 
 
@@ -403,7 +411,8 @@ def s20_delete_booking_cascade(driver) -> float:
         with driver.session() as s:
             s.run("""
                 MATCH (b:Booking {booking_id:$bid})
-                DETACH DELETE b
+                OPTIONAL MATCH (b)-[:HAS_PAYMENT]->(p:Payment)
+                DETACH DELETE b, p
             """, bid=bid)
     return measure(fn)
 
@@ -438,12 +447,36 @@ def s22_delete_cancelled_events(driver) -> float:
 
 
 def s23_delete_old_payments(driver) -> float:
+    with driver.session() as s:
+        rows = list(s.run("""
+            MATCH (b:Booking)
+            WITH b ORDER BY rand()
+            RETURN b.booking_id AS bid
+            LIMIT 10
+        """))
+        if not rows:
+            return 0.0
+        old_date = (datetime.utcnow() - timedelta(days=730)).isoformat()
+        ids = [r["bid"] for r in rows]
+        s.run("""
+            UNWIND $ids AS bid
+            MATCH (b:Booking {booking_id: bid})
+            CREATE (p:Payment {
+                payment_id: randomUUID(),
+                payment_method: 'TEST_OLD',
+                amount: 10.0,
+                payment_date: $old_date,
+                status: 'completed'
+            })
+            CREATE (b)-[:HAS_PAYMENT]->(p)
+        """, ids=ids, old_date=old_date)
+
     def fn():
         with driver.session() as s:
             cutoff = (datetime.utcnow() - timedelta(days=365)).isoformat()
             s.run("""
                 MATCH (b:Booking)-[:HAS_PAYMENT]->(p:Payment)
-                WHERE p.payment_date < $cutoff
+                WHERE p.payment_method = 'TEST_OLD' AND p.payment_date < $cutoff
                 DETACH DELETE p
             """, cutoff=cutoff)
     return measure(fn)
@@ -534,16 +567,17 @@ def run_all_scenarios(repeats: int = 3) -> list:
 def create_indexes():
     driver = get_driver()
     queries = [
-        "CREATE INDEX idx_user_email    IF NOT EXISTS FOR (u:User)    ON (u.email)",
         "CREATE INDEX idx_user_status   IF NOT EXISTS FOR (u:User)    ON (u.status)",
         "CREATE INDEX idx_event_status  IF NOT EXISTS FOR (e:Event)   ON (e.status)",
-        "CREATE INDEX idx_event_start   IF NOT EXISTS FOR (e:Event)   ON (e.start_date)",
-        "CREATE INDEX idx_event_cat     IF NOT EXISTS FOR (e:Event)   ON (e.category)",
+        "CREATE INDEX idx_event_start_date IF NOT EXISTS FOR (e:Event) ON (e.start_date)",
+        "CREATE INDEX idx_event_category IF NOT EXISTS FOR (e:Event) ON (e.category)",
         "CREATE INDEX idx_event_age     IF NOT EXISTS FOR (e:Event)   ON (e.age_limit)",
         "CREATE INDEX idx_venue_city    IF NOT EXISTS FOR (v:Venue)   ON (v.city)",
-        "CREATE INDEX idx_booking_stat  IF NOT EXISTS FOR (b:Booking) ON (b.status)",
+        "CREATE INDEX idx_booking_status IF NOT EXISTS FOR (b:Booking) ON (b.status)",
         "CREATE INDEX idx_ticket_type   IF NOT EXISTS FOR (t:Ticket)  ON (t.ticket_type)",
         "CREATE INDEX idx_ticket_lounge IF NOT EXISTS FOR (t:Ticket)  ON (t.lounge_access)",
+        "CREATE INDEX idx_zone_type IF NOT EXISTS FOR (z:Zone) ON (z.type)",
+        "CREATE INDEX idx_payment_status IF NOT EXISTS FOR (p:Payment) ON (p.status)",
     ]
     with driver.session() as s:
         for q in queries:
@@ -554,14 +588,16 @@ def create_indexes():
 
 def drop_indexes():
     driver = get_driver()
-    names = [
-        "idx_user_email", "idx_user_status",
-        "idx_event_status", "idx_event_start", "idx_event_cat", "idx_event_age",
-        "idx_venue_city",
-        "idx_booking_stat",
-        "idx_ticket_type", "idx_ticket_lounge",
-    ]
+    # Zdejmij wszystkie indeksy niepowiazane z constraintami (ownerConstraint IS NULL).
+    # Dzięki temu nie ma rozjazdu nazw i faza without_indexes jest deterministyczna.
+    names = []
     with driver.session() as s:
+        rows = list(s.run("""
+            SHOW INDEXES YIELD name, owningConstraint
+            WHERE owningConstraint IS NULL
+            RETURN name
+        """))
+        names = [r["name"] for r in rows]
         for name in names:
             try:
                 s.run(f"DROP INDEX {name} IF EXISTS")

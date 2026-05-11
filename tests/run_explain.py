@@ -1,5 +1,5 @@
 """
-run_explain.py - zbieranie planow EXPLAIN/PROFILE dla 4 baz.
+run_explain.py - zbieranie planow EXPLAIN dla baz SQL/MongoDB.
 
 Uzycie:
   python run_explain.py --phase with_indexes
@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 import psycopg2
 import mysql.connector
 from pymongo import MongoClient
-from neo4j import GraphDatabase
 
 import crud_postgres
 import crud_mysql
@@ -45,30 +44,8 @@ MYSQL_CONFIG = {
 MONGO_URI = "mongodb://localhost:27017"
 MONGO_DB = "eventsdb"
 
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "test1234"
-
-
 def ensure_results_dir():
     os.makedirs(RESULTS_DIR, exist_ok=True)
-
-
-def profile_to_dict(profile):
-    if profile is None:
-        return None
-    node = {
-        "operator_type": getattr(profile, "operator_type", None),
-        "args": getattr(profile, "arguments", {}) or {},
-        "db_hits": getattr(profile, "db_hits", None),
-        "rows": getattr(profile, "rows", None),
-        "identifiers": list(getattr(profile, "identifiers", []) or []),
-        "children": [],
-    }
-    children = getattr(profile, "children", []) or []
-    for child in children:
-        node["children"].append(profile_to_dict(child))
-    return node
 
 
 def collect_postgres():
@@ -241,76 +218,11 @@ def collect_mongo():
     return out
 
 
-def collect_neo4j():
-    out = {}
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-    try:
-        with driver.session() as s:
-            row = s.run("MATCH (u:User) RETURN u.email AS email LIMIT 1").single()
-            email = row["email"] if row else "user1@mail.local"
-
-            row = s.run("MATCH (e:Event) RETURN e.status AS st LIMIT 1").single()
-            st = row["st"] if row else "planned"
-            left = (datetime.utcnow() - timedelta(days=365)).isoformat()
-            right = (datetime.utcnow() + timedelta(days=365)).isoformat()
-
-            queries = {
-                "R1_user_by_email": (
-                    "PROFILE MATCH (u:User {email: $email}) RETURN u",
-                    {"email": email},
-                ),
-                "R2_events_status_date": (
-                    """
-                    PROFILE
-                    MATCH (e:Event)
-                    WHERE e.status = $st AND e.start_date >= $left AND e.start_date <= $right
-                    RETURN e.name, e.status, e.start_date
-                    """,
-                    {"st": st, "left": left, "right": right},
-                ),
-                "R5_json_age_limit": (
-                    """
-                    PROFILE
-                    MATCH (e:Event)
-                    WHERE e.age_limit = 18
-                    RETURN e.name, e.age_limit
-                    """,
-                    {},
-                ),
-                "R6_top_events_bookings": (
-                    """
-                    PROFILE
-                    MATCH (:User)-[:MADE_BOOKING]->(b:Booking)-[:CONTAINS]->(:Ticket)-[:FOR_EVENT]->(e:Event)
-                    RETURN e.event_id AS event_id, e.name AS event_name, count(b) AS bookings_count
-                    ORDER BY bookings_count DESC
-                    LIMIT 20
-                    """,
-                    {},
-                ),
-            }
-
-            for name, (q, params) in queries.items():
-                result = s.run(q, **params)
-                _ = list(result)
-                summary = result.consume()
-                out[name] = {
-                    "counters": {
-                        "contains_updates": summary.counters.contains_updates,
-                        "contains_system_updates": summary.counters.contains_system_updates,
-                    },
-                    "profile": profile_to_dict(summary.profile),
-                }
-    finally:
-        driver.close()
-    return out
-
-
 def collect_all():
     return {
         "PostgreSQL": collect_postgres(),
         "MySQL": collect_mysql(),
         "MongoDB": collect_mongo(),
-        "Neo4j": collect_neo4j(),
     }
 
 
@@ -340,7 +252,7 @@ def run_phase(phase: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Zbieranie EXPLAIN/PROFILE dla 4 baz")
+    parser = argparse.ArgumentParser(description="Zbieranie EXPLAIN dla PostgreSQL, MySQL i MongoDB")
     parser.add_argument(
         "--phase",
         choices=["with_indexes", "without_indexes", "both"],

@@ -350,10 +350,18 @@ def s18_update_vip_prices(db) -> float:
 # DELETE 19-24
 # ════════════════════════════════════════════
 def s19_delete_review(db) -> float:
-    review = rand_doc(db.reviews)
-    if not review:
+    user = rand_doc(db.users)
+    event = rand_doc(db.events)
+    if not user or not event:
         return 0.0
-    review_id = review["_id"]
+    inserted = db.reviews.insert_one({
+        "user_id": user["_id"],
+        "event_id": event["_id"],
+        "rating": 5,
+        "comment": "TEST_DELETE_REVIEW",
+        "created_at": datetime.utcnow(),
+    })
+    review_id = inserted.inserted_id
 
     def fn():
         db.reviews.delete_one({"_id": review_id})
@@ -401,11 +409,32 @@ def s22_delete_cancelled_events(db) -> float:
 
 
 def s23_delete_old_payments(db) -> float:
+    # Dosiej 10 testowych bookingow z data platnosci sprzed 2 lat.
+    old_date = datetime.utcnow() - timedelta(days=730)
+    inserted_ids = []
+    for _ in range(10):
+        result = db.bookings.insert_one({
+            "user_id": 1,
+            "booking_date": old_date,
+            "status": "paid",
+            "total_price": 10.0,
+            "items": [],
+            "payment": {
+                "method": "TEST_OLD",
+                "amount": 10.0,
+                "payment_date": old_date,
+                "status": "completed"
+            }
+        })
+        inserted_ids.append(result.inserted_id)
+
     def fn():
         cutoff = datetime.utcnow() - timedelta(days=365)
-        db.bookings.update_many({
-            "payment.payment_date": {"$lt": cutoff},
-        }, {"$unset": {"payment": ""}})
+        db.bookings.delete_many({
+            "_id": {"$in": inserted_ids},
+            "payment.method": "TEST_OLD",
+            "payment.payment_date": {"$lt": cutoff}
+        })
     return measure(fn)
 
 
@@ -476,7 +505,6 @@ def run_all_scenarios(repeats: int = 3) -> list:
 
 def create_indexes():
     db, client = get_db()
-    db.users.create_index([("email", ASCENDING)],             unique=True)
     db.users.create_index([("status", ASCENDING)])
     db.events.create_index([("status", ASCENDING)])
     db.events.create_index([("start_date", ASCENDING)])
@@ -498,10 +526,13 @@ def drop_indexes():
     for col_name in ["users", "events", "bookings", "reviews"]:
         col = db[col_name]
         for idx in col.list_indexes():
-            if idx["name"] != "_id_":
-                try:
-                    col.drop_index(idx["name"])
-                except Exception:
-                    pass
+            if idx["name"] == "_id_":
+                continue
+            if col_name == "users" and "email" in idx.get("key", {}):
+                continue  # analogicznie do SQL UNIQUE(users.email)
+            try:
+                col.drop_index(idx["name"])
+            except Exception:
+                pass
     client.close()
     print("  [MongoDB] ✅ Indeksy usunięte")

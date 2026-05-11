@@ -6,6 +6,7 @@ import time
 import random
 import json
 import uuid
+from datetime import datetime, timedelta
 import mysql.connector
 
 DB_CONFIG = {
@@ -218,11 +219,11 @@ def s10_aggregate_avg_rating(conn) -> float:
     def fn():
         cur = conn.cursor()
         cur.execute("""
-            SELECT e.id, e.name, ROUND(AVG(r.rating), 2), COUNT(r.id)
+            SELECT e.id, e.name, ROUND(AVG(r.rating), 2) AS avg_rating, COUNT(r.id)
             FROM reviews r
             JOIN events e ON e.id = r.event_id
             GROUP BY e.id, e.name
-            ORDER BY 2 DESC
+            ORDER BY avg_rating DESC
             LIMIT 50
         """)
         cur.fetchall()
@@ -366,15 +367,26 @@ def s18_update_vip_prices(conn) -> float:
 # ════════════════════════════════════════════
 def s19_delete_review(conn) -> float:
     cur = conn.cursor()
-    cur.execute("SELECT user_id, event_id FROM reviews ORDER BY RAND() LIMIT 1")
-    row = cur.fetchone()
-    cur.close()
-    if not row:
+    review_id = None
+    for _ in range(20):
+        user_id = rand_id(cur, "users")
+        event_id = rand_id(cur, "events")
+        cur.execute("""
+            INSERT IGNORE INTO reviews (user_id, event_id, rating, comment)
+            VALUES (%s,%s,5,'TEST_DELETE_REVIEW')
+        """, (user_id, event_id))
+        if cur.rowcount == 1:
+            review_id = cur.lastrowid
+            break
+    if review_id is None:
+        cur.close()
         return 0.0
+    conn.commit()
+    cur.close()
 
     def fn():
         cur = conn.cursor()
-        cur.execute("DELETE FROM reviews WHERE user_id=%s AND event_id=%s", row)
+        cur.execute("DELETE FROM reviews WHERE id=%s", (review_id,))
         conn.commit()
         cur.close()
     return measure(fn)
@@ -432,11 +444,30 @@ def s22_delete_cancelled_events(conn) -> float:
 
 
 def s23_delete_old_payments(conn) -> float:
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM bookings ORDER BY RAND() LIMIT 10")
+    booking_ids = [row[0] for row in cur.fetchall()]
+    if not booking_ids:
+        cur.close()
+        return 0.0
+    old_date = datetime.utcnow() - timedelta(days=730)
+    rows = [
+        (bid, "TEST_OLD", 10.0, old_date, "completed")
+        for bid in booking_ids
+    ]
+    cur.executemany("""
+        INSERT INTO payments (booking_id, payment_method, amount, payment_date, status)
+        VALUES (%s,%s,%s,%s,%s)
+    """, rows)
+    conn.commit()
+    cur.close()
+
     def fn():
         cur = conn.cursor()
         cur.execute("""
             DELETE FROM payments
-            WHERE payment_date < DATE_SUB(NOW(), INTERVAL 1 YEAR)
+            WHERE payment_method = 'TEST_OLD'
+              AND payment_date < DATE_SUB(NOW(), INTERVAL 1 YEAR)
         """)
         conn.commit()
         cur.close()
@@ -505,67 +536,73 @@ def run_all_scenarios(repeats: int = 3) -> list:
 
 
 INDEXES = [
-    "CREATE INDEX idx_users_email      ON users(email)",
     "CREATE INDEX idx_users_status     ON users(status)",
     "CREATE INDEX idx_venues_city      ON venues(city)",
     "CREATE INDEX idx_events_status    ON events(status)",
-    "CREATE INDEX idx_events_start     ON events(start_date)",
-    "CREATE INDEX idx_events_category  ON events(category_id)",
-    "CREATE INDEX idx_events_venue     ON events(venue_id)",
-    "CREATE INDEX idx_tickets_event    ON tickets(event_id)",
-    "CREATE INDEX idx_tickets_zone     ON tickets(zone_id)",
-    "CREATE INDEX idx_tickets_type     ON tickets(ticket_type)",
+    "CREATE INDEX idx_events_start_date ON events(start_date)",
+    "CREATE INDEX idx_zones_event      ON event_zones(event_id)",
+    "CREATE INDEX idx_seats_zone       ON seats(zone_id)",
     "CREATE INDEX idx_tickets_status   ON tickets(status)",
-    "CREATE INDEX idx_bookings_user    ON bookings(user_id)",
+    "CREATE INDEX idx_payments_status  ON payments(status)",
     "CREATE INDEX idx_bookings_status  ON bookings(status)",
     "CREATE INDEX idx_bookings_date    ON bookings(booking_date)",
-    "CREATE INDEX idx_reviews_event    ON reviews(event_id)",
     "CREATE INDEX idx_reviews_user     ON reviews(user_id)",
 ]
 
 DROP_INDEXES = [
-    "DROP INDEX idx_users_email     ON users",
-    "DROP INDEX idx_users_status    ON users",
-    "DROP INDEX idx_venues_city     ON venues",
-    "DROP INDEX idx_events_status   ON events",
-    "DROP INDEX idx_events_start    ON events",
-    "DROP INDEX idx_events_category ON events",
-    "DROP INDEX idx_events_venue    ON events",
-    "DROP INDEX idx_tickets_event   ON tickets",
-    "DROP INDEX idx_tickets_zone    ON tickets",
-    "DROP INDEX idx_tickets_type    ON tickets",
-    "DROP INDEX idx_tickets_status  ON tickets",
-    "DROP INDEX idx_bookings_user   ON bookings",
-    "DROP INDEX idx_bookings_status ON bookings",
-    "DROP INDEX idx_bookings_date   ON bookings",
-    "DROP INDEX idx_reviews_event   ON reviews",
-    "DROP INDEX idx_reviews_user    ON reviews",
+    "DROP INDEX idx_users_status            ON users",
+    "DROP INDEX idx_venues_city             ON venues",
+    "DROP INDEX idx_events_status           ON events",
+    "DROP INDEX idx_events_start_date       ON events",
+    "DROP INDEX idx_zones_event             ON event_zones",
+    "DROP INDEX idx_seats_zone              ON seats",
+    "DROP INDEX idx_tickets_status          ON tickets",
+    "DROP INDEX idx_payments_status         ON payments",
+    "DROP INDEX idx_bookings_status         ON bookings",
+    "DROP INDEX idx_bookings_date           ON bookings",
+    "DROP INDEX idx_reviews_user            ON reviews",
 ]
 
 
 def create_indexes():
     conn = get_conn()
     cur  = conn.cursor()
+    critical_errors = []
     for sql in INDEXES:
         try:
             cur.execute(sql)
-        except Exception:
-            pass  # indeks już istnieje
+        except Exception as e:
+            print(f"  [MySQL][WARN] create index failed: {sql} | {e}")
+            msg = str(e).lower()
+            # Nie przerywaj dla "index already exists" (stan idempotentny).
+            if "duplicate key name" in msg or "already exists" in msg:
+                continue
+            critical_errors.append((sql, str(e)))
     conn.commit()
     cur.close()
     conn.close()
+    if critical_errors:
+        raise RuntimeError(f"MySQL create_indexes critical errors: {critical_errors}")
     print("  [MySQL] ✅ Indeksy utworzone")
 
 
 def drop_indexes():
     conn = get_conn()
     cur  = conn.cursor()
+    critical_errors = []
     for sql in DROP_INDEXES:
         try:
             cur.execute(sql)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  [MySQL][WARN] drop index failed: {sql} | {e}")
+            msg = str(e).lower()
+            # Nie przerywaj dla "index not exists" (stan idempotentny).
+            if "check that column/key exists" in msg or "doesn't exist" in msg:
+                continue
+            critical_errors.append((sql, str(e)))
     conn.commit()
     cur.close()
     conn.close()
+    if critical_errors:
+        raise RuntimeError(f"MySQL drop_indexes critical errors: {critical_errors}")
     print("  [MySQL] ✅ Indeksy usunięte")

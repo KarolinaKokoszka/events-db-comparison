@@ -7,6 +7,7 @@ import time
 import random
 import json
 import uuid
+from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
 
@@ -372,19 +373,27 @@ def s18_update_vip_prices(conn) -> float:
 # ════════════════════════════════════════════
 def s19_delete_review(conn) -> float:
     with conn.cursor() as cur:
-        cur.execute("""
-            SELECT user_id, event_id FROM reviews
-            ORDER BY RANDOM() LIMIT 1
-        """)
-        row = cur.fetchone()
-    if not row:
-        return 0.0
+        review_id = None
+        for _ in range(20):
+            user_id = rand_id(cur, "users")
+            event_id = rand_id(cur, "events")
+            cur.execute("""
+                INSERT INTO reviews (user_id, event_id, rating, comment)
+                VALUES (%s, %s, 5, 'TEST_DELETE_REVIEW')
+                ON CONFLICT (user_id, event_id) DO NOTHING
+                RETURNING id
+            """, (user_id, event_id))
+            row = cur.fetchone()
+            if row:
+                review_id = row[0]
+                break
+        if review_id is None:
+            return 0.0
+    conn.commit()
 
     def fn():
         with conn.cursor() as cur:
-            cur.execute("""
-                DELETE FROM reviews WHERE user_id = %s AND event_id = %s
-            """, row)
+            cur.execute("DELETE FROM reviews WHERE id = %s", (review_id,))
         conn.commit()
     return measure(fn)
 
@@ -435,11 +444,27 @@ def s22_delete_cancelled_events(conn) -> float:
 
 
 def s23_delete_old_payments(conn) -> float:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM bookings ORDER BY RANDOM() LIMIT 10")
+        booking_ids = [r[0] for r in cur.fetchall()]
+        if not booking_ids:
+            return 0.0
+        rows = [
+            (bid, "TEST_OLD", 10.0, datetime.utcnow() - timedelta(days=730), "completed")
+            for bid in booking_ids
+        ]
+        execute_values(cur, """
+            INSERT INTO payments (booking_id, payment_method, amount, payment_date, status)
+            VALUES %s
+        """, rows)
+    conn.commit()
+
     def fn():
         with conn.cursor() as cur:
             cur.execute("""
                 DELETE FROM payments
-                WHERE payment_date < NOW() - INTERVAL '1 year'
+                WHERE payment_method = 'TEST_OLD'
+                  AND payment_date < NOW() - INTERVAL '1 year'
             """)
         conn.commit()
     return measure(fn)
@@ -547,6 +572,7 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date)",
     "CREATE INDEX IF NOT EXISTS idx_events_category   ON events(category_id)",
     "CREATE INDEX IF NOT EXISTS idx_events_venue      ON events(venue_id)",
+    "CREATE INDEX IF NOT EXISTS idx_events_organizer  ON events(organizer_id)",
     "CREATE INDEX IF NOT EXISTS idx_events_add_info   ON events USING GIN (additional_info)",
     # tickets
     "CREATE INDEX IF NOT EXISTS idx_tickets_event  ON tickets(event_id)",
@@ -571,6 +597,7 @@ DROP_INDEXES = [
     "DROP INDEX IF EXISTS idx_events_start_date",
     "DROP INDEX IF EXISTS idx_events_category",
     "DROP INDEX IF EXISTS idx_events_venue",
+    "DROP INDEX IF EXISTS idx_events_organizer",
     "DROP INDEX IF EXISTS idx_events_add_info",
     "DROP INDEX IF EXISTS idx_tickets_event",
     "DROP INDEX IF EXISTS idx_tickets_zone",
