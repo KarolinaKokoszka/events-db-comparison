@@ -11,9 +11,7 @@ venv/
 
 # Generator – wygenerowane dane (duże pliki JSON)
 generator/data/
-
-# Wyniki testów (CSV + wykresy)
-tests/results/
+data/
 
 # Docker volumes
 postgres_data/
