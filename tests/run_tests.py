@@ -144,7 +144,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {{
-      --pg: #336791; --my: #F29111; --mo: #47A248; --n4: #008CC1;
+      --pg: #346da1; --my: #ffa536; --mo: #2fb4a2; --n4: #fb5937;
       --header: #1f2f57;
       --line: #d9dce6; --bg: #f2f4f8; --card: #ffffff; --text: #1e2d4a; --muted: #627091;
     }}
@@ -359,16 +359,16 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 
     <section id="tab-json" class="tab-content">
       <div class="card">
-        <h3>JSON vs zwykłe scenariusze</h3>
-        <p class="chart-note">Porownanie grup: JSON (S3, S11, S17) vs zwykle (pozostale scenariusze); wartosc = srednia avg_time_s w grupie.</p>
+        <h3>Scenariusze JSON (S3, S11, S17) - porownanie baz</h3>
+        <p class="chart-note">Grupy na osi X to scenariusze S3, S11 i S17, a slupki pokazuja czas [ms] dla PostgreSQL, MySQL, MongoDB i Neo4j (avg_time_s z fazy with_indexes).</p>
         <div class="chart-box-md"><canvas id="chart-json"></canvas></div>
       </div>
       <div class="card">
-        <h3>Podsumowanie JSON vs zwykłe</h3>
+        <h3>Podsumowanie JSON</h3>
         <div class="table-wrap">
           <table id="table-json">
             <thead>
-              <tr><th>Baza</th><th>JSON [ms]</th><th>Zwykłe [ms]</th><th>Różnica (JSON - zwykłe) [ms]</th></tr>
+              <tr><th>Baza</th><th>Średni czas JSON [ms]</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -415,10 +415,10 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
     const SCENARIOS = {scenarios_json};
     const DBS = ["PostgreSQL", "MySQL", "MongoDB", "Neo4j"];
     const COLORS = {{
-      "PostgreSQL": "#336791",
-      "MySQL": "#F29111",
-      "MongoDB": "#47A248",
-      "Neo4j": "#008CC1",
+      "PostgreSQL": "#346da1",
+      "MySQL": "#ffa536",
+      "MongoDB": "#2fb4a2",
+      "Neo4j": "#fb5937",
     }};
     const OPS = ["CREATE", "READ", "UPDATE", "DELETE"];
     const TAB_DEF = [
@@ -426,7 +426,7 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
       {{ id: "h1", label: "Wpływ indeksów" }},
       {{ id: "delta", label: "Wpływ indeksów (szczegóły)" }},
       {{ id: "scenarios", label: "Scenariusze szczegółowo" }},
-      {{ id: "json", label: "JSON vs zwykłe" }},
+      {{ id: "json", label: "JSON" }},
     ];
 
     const scenarioMap = Object.fromEntries(SCENARIOS.map(s => [String(s.id), s]));
@@ -734,45 +734,40 @@ def build_dashboard_html(size: str, records: list, scenarios: list) -> str:
 
     function renderJson() {{
       const rows = by({{ phase: "with_indexes", operation: "all" }});
-      const nonJsonRows = rows.filter(r => !r.json_related);
-      const jsonRows = rows.filter(r => r.json_related);
-
+      const jsonScenarioIds = [3, 11, 17];
+      const jsonRows = rows.filter(r => jsonScenarioIds.includes(r.scenario_id));
       const jsonByDb = groupedAvg(jsonRows, r => r.db);
-      const nonJsonByDb = groupedAvg(nonJsonRows, r => r.db);
+      const labels = jsonScenarioIds.map(sid => {{
+        const meta = scenarioMap[String(sid)];
+        return meta ? `S${{sid}}: ${{meta.name}}` : `S${{sid}}`;
+      }});
 
       makeChart("chart-json", {{
         type: "bar",
         data: {{
-          labels: DBS,
-          datasets: [
-            {{
-              label: "Zwykłe scenariusze",
-              data: DBS.map(db => ms(nonJsonByDb[db] || 0)),
-              backgroundColor: "#3498db99",
-              borderColor: "#3498db",
+          labels,
+          datasets: DBS.map(db => {{
+            const byScenario = Object.fromEntries(
+              jsonRows.filter(r => r.db === db).map(r => [r.scenario_id, r.avg_time_s])
+            );
+            return {{
+              label: db,
+              data: jsonScenarioIds.map(sid => ms(byScenario[sid] || 0)),
+              backgroundColor: COLORS[db] + "bb",
+              borderColor: COLORS[db],
               borderWidth: 1,
-            }},
-            {{
-              label: "Scenariusze JSON",
-              data: DBS.map(db => ms(jsonByDb[db] || 0)),
-              backgroundColor: "#e67e2299",
-              borderColor: "#e67e22",
-              borderWidth: 1,
-            }},
-          ],
+            }};
+          }}),
         }},
-        options: baseBarOptionsMs("x", "Baza danych", "Czas [ms] (srednia)"),
+        options: baseBarOptionsMs("x", "Scenariusz JSON", "Czas [ms]"),
       }});
 
       const tbody = document.querySelector("#table-json tbody");
       tbody.innerHTML = DBS.map(db => {{
         const j = jsonByDb[db] || 0;
-        const n = nonJsonByDb[db] || 0;
         return `<tr>
           <td>${{db}}</td>
           <td>${{ms(j)}}</td>
-          <td>${{ms(n)}}</td>
-          <td>${{ms(j - n)}}</td>
         </tr>`;
       }}).join("");
     }}
@@ -896,7 +891,7 @@ def build_h2_dashboard_html() -> str:
   <title>Dashboard H2</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root { --pg:#336791; --my:#F29111; --mo:#47A248; --n4:#008CC1; --line:#d9dce6; --bg:#f2f4f8; --card:#fff; --text:#1e2d4a; --muted:#627091; }
+    :root { --pg:#346da1; --my:#ffa536; --mo:#2fb4a2; --n4:#fb5937; --line:#d9dce6; --bg:#f2f4f8; --card:#fff; --text:#1e2d4a; --muted:#627091; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font-family: Segoe UI, Arial, sans-serif; }
     .wrap { max-width:1400px; margin:0 auto; padding:20px; }
@@ -958,7 +953,7 @@ def build_h2_dashboard_html() -> str:
     const DBS = ["PostgreSQL", "MySQL", "MongoDB", "Neo4j"];
     const OPS = ["CREATE", "READ", "UPDATE", "DELETE"];
     const SIZES = ["small", "medium", "large"];
-    const COLORS = { PostgreSQL:"#336791", MySQL:"#F29111", MongoDB:"#47A248", Neo4j:"#008CC1" };
+    const COLORS = { PostgreSQL:"#346da1", MySQL:"#ffa536", MongoDB:"#2fb4a2", Neo4j:"#fb5937" };
     const charts = {};
 
     function avg(vals){ return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null; }
