@@ -18,7 +18,7 @@ WYMAGANIA
 
 KROK 0: PRZEJDZ DO FOLDERU PROJEKTU
 -----------------------------------
-cd "C:\Users\Marcin\OneDrive - Hauraton GmbH & Co. KG\Dokumente\STUDIA II\PK\ZTBD\Projekt_v2\events-db-comparison"
+cd events-db-comparison
 
 
 KROK 1: URUCHOM KONTENERY Z BAZAMI
