@@ -1,0 +1,97 @@
+db,scenario_id,operation,scenario_name,json_related,try_1,try_2,try_3,avg_time_s,phase,size,timestamp
+PostgreSQL,1,CREATE,Wstaw 1 użytkownika,False,0.008869,0.004352,0.005216,0.006146,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,2,CREATE,Wstaw 100 użytkowników wsadowo,False,0.012426,0.009639,0.007785,0.00995,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,3,CREATE,Wstaw event z danymi JSON,True,0.024486,0.009612,0.009434,0.014511,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,4,CREATE,Wstaw booking z platnoscia,False,0.049713,0.042184,0.039805,0.043901,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,5,CREATE,Wstaw recenzje eventu,False,0.017962,0.018562,0.018063,0.018196,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,6,CREATE,Wstaw bilet powiazany z eventem,False,0.014065,0.01173,0.012366,0.01272,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,7,READ,SELECT user po emailu,False,0.008102,0.001879,0.002125,0.004035,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,8,READ,SELECT eventy po statusie i dacie,False,0.005504,0.002756,0.002169,0.003476,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,9,READ,SELECT booking z JOINami,False,0.004222,0.002869,0.002586,0.003226,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,10,READ,Agregacja: srednia ocena eventu,False,0.017003,0.01114,0.011421,0.013188,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,11,READ,Filtr po polu JSON (age_limit),True,0.007379,0.003301,0.002672,0.004451,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,12,READ,Top eventy po liczbie bookingow,False,0.073276,0.064776,0.071442,0.069831,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,13,UPDATE,Zmień status bookingu,False,0.015325,0.007354,0.006891,0.009857,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,14,UPDATE,Aktualizuj available_quantity,False,0.007912,0.006622,0.006043,0.006859,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,15,UPDATE,Masowy UPDATE statusu eventów,False,0.011566,0.006588,0.006521,0.008225,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,16,UPDATE,Aktualizuj dane użytkownika,False,0.006449,0.006769,0.007422,0.00688,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,17,UPDATE,Aktualizuj pole JSON (languages),True,0.013326,0.005704,0.004259,0.007763,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,18,UPDATE,Zmień ceny biletów VIP o 10%,False,0.385599,0.222033,0.207934,0.271855,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,19,DELETE,Usuń recenzję,False,0.004761,0.005437,0.005151,0.005116,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,20,DELETE,Usuń booking (cascade),False,0.004897,0.005553,0.005551,0.005334,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,21,DELETE,Usuń użytkownika (cascade),False,0.018192,0.016822,0.013486,0.016167,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,22,DELETE,Usuń eventy cancelled,False,0.085821,0.099642,0.095509,0.093657,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,23,DELETE,Usuń stare płatności,False,0.014884,0.013516,0.009705,0.012702,without_indexes,small,2026-05-12 08:56:11
+PostgreSQL,24,DELETE,Usun testowy bilet,False,0.005947,0.00684,0.007169,0.006652,without_indexes,small,2026-05-12 08:56:11
+MySQL,1,CREATE,Wstaw 1 użytkownika,False,0.033199,0.01521,0.012899,0.020436,without_indexes,small,2026-05-12 08:56:11
+MySQL,2,CREATE,Wstaw 100 użytkowników wsadowo,False,0.025849,0.028424,0.025766,0.02668,without_indexes,small,2026-05-12 08:56:11
+MySQL,3,CREATE,Wstaw event z danymi JSON,True,0.047184,0.032962,0.045067,0.041738,without_indexes,small,2026-05-12 08:56:11
+MySQL,4,CREATE,Wstaw booking z platnoscia,False,0.068771,0.059531,0.057393,0.061898,without_indexes,small,2026-05-12 08:56:11
+MySQL,5,CREATE,Wstaw recenzje eventu,False,0.027974,0.029487,0.028233,0.028565,without_indexes,small,2026-05-12 08:56:11
+MySQL,6,CREATE,Wstaw bilet powiazany z eventem,False,0.024873,0.030569,0.017771,0.024404,without_indexes,small,2026-05-12 08:56:11
+MySQL,7,READ,SELECT user po emailu,False,0.008348,0.006035,0.005808,0.00673,without_indexes,small,2026-05-12 08:56:11
+MySQL,8,READ,SELECT eventy po statusie i dacie,False,0.016055,0.011064,0.012738,0.013286,without_indexes,small,2026-05-12 08:56:11
+MySQL,9,READ,SELECT booking z JOINami,False,0.007356,0.006501,0.005719,0.006525,without_indexes,small,2026-05-12 08:56:11
+MySQL,10,READ,Agregacja: srednia ocena eventu,False,0.041689,0.033097,0.038726,0.037837,without_indexes,small,2026-05-12 08:56:11
+MySQL,11,READ,Filtr po polu JSON (age_limit),True,0.019721,0.024076,0.025356,0.023051,without_indexes,small,2026-05-12 08:56:11
+MySQL,12,READ,Top eventy po liczbie bookingow,False,0.368628,0.311583,0.404787,0.361666,without_indexes,small,2026-05-12 08:56:11
+MySQL,13,UPDATE,Zmień status bookingu,False,0.02752,0.017376,0.029405,0.024767,without_indexes,small,2026-05-12 08:56:11
+MySQL,14,UPDATE,Aktualizuj available_quantity,False,0.02202,0.013456,0.014596,0.016691,without_indexes,small,2026-05-12 08:56:11
+MySQL,15,UPDATE,Masowy UPDATE statusu eventów,False,0.024585,0.01865,0.021295,0.02151,without_indexes,small,2026-05-12 08:56:11
+MySQL,16,UPDATE,Aktualizuj dane użytkownika,False,0.015461,0.025962,0.02216,0.021194,without_indexes,small,2026-05-12 08:56:11
+MySQL,17,UPDATE,Aktualizuj pole JSON (languages),True,0.016867,0.024739,0.031606,0.024404,without_indexes,small,2026-05-12 08:56:11
+MySQL,18,UPDATE,Zmień ceny biletów VIP o 10%,False,0.358151,0.33458,0.376344,0.356358,without_indexes,small,2026-05-12 08:56:11
+MySQL,19,DELETE,Usuń recenzję,False,0.019245,0.011769,0.011039,0.014018,without_indexes,small,2026-05-12 08:56:11
+MySQL,20,DELETE,Usuń booking (cascade),False,0.014589,0.014892,0.010951,0.013477,without_indexes,small,2026-05-12 08:56:11
+MySQL,21,DELETE,Usuń użytkownika (cascade),False,0.010408,0.011923,0.010967,0.011099,without_indexes,small,2026-05-12 08:56:11
+MySQL,22,DELETE,Usuń eventy cancelled,False,0.017167,0.014622,0.026506,0.019432,without_indexes,small,2026-05-12 08:56:11
+MySQL,23,DELETE,Usuń stare płatności,False,0.05104,0.053212,0.116731,0.073661,without_indexes,small,2026-05-12 08:56:11
+MySQL,24,DELETE,Usun testowy bilet,False,0.016671,0.034668,0.01313,0.02149,without_indexes,small,2026-05-12 08:56:11
+MongoDB,1,CREATE,Wstaw 1 użytkownika,False,0.026079,0.003592,0.003663,0.011111,without_indexes,small,2026-05-12 08:56:11
+MongoDB,2,CREATE,Wstaw 100 użytkowników wsadowo,False,0.00822,0.00962,0.009524,0.009121,without_indexes,small,2026-05-12 08:56:11
+MongoDB,3,CREATE,Wstaw event z danymi JSON,True,0.0042,0.004131,0.003047,0.003793,without_indexes,small,2026-05-12 08:56:11
+MongoDB,4,CREATE,Wstaw booking z platnoscia,False,0.061247,0.033587,0.032525,0.042453,without_indexes,small,2026-05-12 08:56:11
+MongoDB,5,CREATE,Wstaw recenzje eventu,False,0.118775,0.053376,0.042343,0.071498,without_indexes,small,2026-05-12 08:56:11
+MongoDB,6,CREATE,Wstaw bilet powiazany z eventem,False,0.059572,0.012362,0.015468,0.029134,without_indexes,small,2026-05-12 08:56:11
+MongoDB,7,READ,SELECT user po emailu,False,0.006139,0.003085,0.003704,0.004309,without_indexes,small,2026-05-12 08:56:11
+MongoDB,8,READ,SELECT eventy po statusie i dacie,False,0.022757,0.008426,0.009235,0.013473,without_indexes,small,2026-05-12 08:56:11
+MongoDB,9,READ,SELECT booking z JOINami,False,0.002929,0.003192,0.003096,0.003072,without_indexes,small,2026-05-12 08:56:11
+MongoDB,10,READ,Agregacja: srednia ocena eventu,False,0.074112,0.053426,0.044194,0.057244,without_indexes,small,2026-05-12 08:56:11
+MongoDB,11,READ,Filtr po polu JSON (age_limit),True,0.022327,0.012107,0.010611,0.015015,without_indexes,small,2026-05-12 08:56:11
+MongoDB,12,READ,Top eventy po liczbie bookingow,False,0.162174,0.144248,0.114451,0.140291,without_indexes,small,2026-05-12 08:56:11
+MongoDB,13,UPDATE,Zmień status bookingu,False,0.003914,0.00344,0.003438,0.003597,without_indexes,small,2026-05-12 08:56:11
+MongoDB,14,UPDATE,Aktualizuj available_quantity,False,0.01273,0.003577,0.003416,0.006574,without_indexes,small,2026-05-12 08:56:11
+MongoDB,15,UPDATE,Masowy UPDATE statusu eventów,False,0.142324,0.149189,0.135663,0.142392,without_indexes,small,2026-05-12 08:56:11
+MongoDB,16,UPDATE,Aktualizuj dane użytkownika,False,0.005439,0.00466,0.004537,0.004879,without_indexes,small,2026-05-12 08:56:11
+MongoDB,17,UPDATE,Aktualizuj pole JSON (languages),True,0.004928,0.00619,0.005653,0.00559,without_indexes,small,2026-05-12 08:56:11
+MongoDB,18,UPDATE,Zmień ceny biletów VIP o 10%,False,1.336216,1.231719,1.149204,1.239046,without_indexes,small,2026-05-12 08:56:11
+MongoDB,19,DELETE,Usuń recenzję,False,0.005135,0.002986,0.002769,0.00363,without_indexes,small,2026-05-12 08:56:11
+MongoDB,20,DELETE,Usuń booking (cascade),False,0.004219,0.003596,0.003252,0.003689,without_indexes,small,2026-05-12 08:56:11
+MongoDB,21,DELETE,Usuń użytkownika (cascade),False,0.002798,0.004127,0.004625,0.00385,without_indexes,small,2026-05-12 08:56:11
+MongoDB,22,DELETE,Usuń eventy cancelled,False,0.0131,0.004662,0.005005,0.007589,without_indexes,small,2026-05-12 08:56:11
+MongoDB,23,DELETE,Usuń stare płatności,False,0.00453,0.00371,0.003064,0.003768,without_indexes,small,2026-05-12 08:56:11
+MongoDB,24,DELETE,Usun testowy bilet,False,0.005719,0.002646,0.003732,0.004032,without_indexes,small,2026-05-12 08:56:11
+Neo4j,1,CREATE,Wstaw 1 użytkownika,False,0.140528,0.012222,0.008718,0.053823,without_indexes,small,2026-05-12 08:56:11
+Neo4j,2,CREATE,Wstaw 100 użytkowników wsadowo,False,0.140707,0.02565,0.023449,0.063269,without_indexes,small,2026-05-12 08:56:11
+Neo4j,3,CREATE,Wstaw event z danymi JSON,True,0.062915,0.007532,0.010124,0.026857,without_indexes,small,2026-05-12 08:56:11
+Neo4j,4,CREATE,Wstaw booking z platnoscia,False,0.346116,0.026515,0.025429,0.132687,without_indexes,small,2026-05-12 08:56:11
+Neo4j,5,CREATE,Wstaw recenzje eventu,False,0.233552,0.039816,0.02852,0.100629,without_indexes,small,2026-05-12 08:56:11
+Neo4j,6,CREATE,Wstaw bilet powiazany z eventem,False,0.215951,0.023074,0.023965,0.087663,without_indexes,small,2026-05-12 08:56:11
+Neo4j,7,READ,SELECT user po emailu,False,0.078418,0.006603,0.006978,0.030666,without_indexes,small,2026-05-12 08:56:11
+Neo4j,8,READ,SELECT eventy po statusie i dacie,False,0.290016,0.079586,0.084889,0.151497,without_indexes,small,2026-05-12 08:56:11
+Neo4j,9,READ,SELECT booking z JOINami,False,0.208247,0.006301,0.006203,0.073584,without_indexes,small,2026-05-12 08:56:11
+Neo4j,10,READ,Agregacja: srednia ocena eventu,False,0.375282,0.072238,0.088313,0.178611,without_indexes,small,2026-05-12 08:56:11
+Neo4j,11,READ,Filtr po polu JSON (age_limit),True,0.132488,0.074796,0.071178,0.092821,without_indexes,small,2026-05-12 08:56:11
+Neo4j,12,READ,Top eventy po liczbie bookingow,False,0.391376,0.206966,0.239323,0.279222,without_indexes,small,2026-05-12 08:56:11
+Neo4j,13,UPDATE,Zmień status bookingu,False,0.059058,0.01075,0.010678,0.026829,without_indexes,small,2026-05-12 08:56:11
+Neo4j,14,UPDATE,Aktualizuj available_quantity,False,0.074011,0.010717,0.010445,0.031724,without_indexes,small,2026-05-12 08:56:11
+Neo4j,15,UPDATE,Masowy UPDATE statusu eventów,False,0.204042,0.073119,0.068903,0.115355,without_indexes,small,2026-05-12 08:56:11
+Neo4j,16,UPDATE,Aktualizuj dane użytkownika,False,0.053925,0.015366,0.008572,0.025954,without_indexes,small,2026-05-12 08:56:11
+Neo4j,17,UPDATE,Aktualizuj pole JSON (languages),True,0.0959,0.010835,0.00774,0.038158,without_indexes,small,2026-05-12 08:56:11
+Neo4j,18,UPDATE,Zmień ceny biletów VIP o 10%,False,0.58114,0.34934,0.242875,0.391118,without_indexes,small,2026-05-12 08:56:11
+Neo4j,19,DELETE,Usuń recenzję,False,0.195948,0.012111,0.012937,0.073665,without_indexes,small,2026-05-12 08:56:11
+Neo4j,20,DELETE,Usuń booking (cascade),False,0.108353,0.011982,0.017803,0.046046,without_indexes,small,2026-05-12 08:56:11
+Neo4j,21,DELETE,Usuń użytkownika (cascade),False,0.040533,0.008275,0.009034,0.019281,without_indexes,small,2026-05-12 08:56:11
+Neo4j,22,DELETE,Usuń eventy cancelled,False,0.091633,0.06084,0.12643,0.092968,without_indexes,small,2026-05-12 08:56:11
+Neo4j,23,DELETE,Usuń stare płatności,False,0.203324,0.110746,0.135049,0.149706,without_indexes,small,2026-05-12 08:56:11
+Neo4j,24,DELETE,Usun testowy bilet,False,0.042685,0.011479,0.00987,0.021345,without_indexes,small,2026-05-12 08:56:11

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard H2</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --pg:#346da1; --my:#ffa536; --mo:#2fb4a2; --n4:#fb5937; --line:#d9dce6; --bg:#f2f4f8; --card:#fff; --text:#1e2d4a; --muted:#627091; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: Segoe UI, Arial, sans-serif; }
+    .wrap { max-width:1400px; margin:0 auto; padding:20px; }
+    .hero { background:linear-gradient(135deg,#1f2f57 0%,#293f74 100%); color:#f4f7ff; border-radius:14px; padding:16px 18px; margin-bottom:12px; }
+    .hero-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+    .hero-title { margin:0 0 4px 0; font-size:30px; font-weight:700; }
+    .hero-meta { color:#c7d7ff; margin:0 0 8px 0; font-size:12px; font-weight:600; }
+    .chip { border:1px solid #6f93de; color:#edf3ff; border-radius:14px; font-weight:600; font-size:12px; padding:3px 10px; background:rgba(255,255,255,.08); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .chart-box { height:300px; }
+    .legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px; font-size:13px; }
+    .dot { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:6px; }
+    .hint { color:var(--muted); font-size:12px; margin:4px 0 8px 0; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
+    th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; }
+    th { background:#f2f2f2; }
+    @media (max-width: 1100px) { .grid-2 { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <h1 class="hero-title">Analiza hipotezy H2: Wplyw rozmiaru zbioru danych</h1>
+          <p class="hero-meta">H2: Roznice wydajnosci miedzy silnikami rosna wraz ze wzrostem liczby rekordow (small=500k, medium=1M, large=10M)</p>
+          <input id="files" type="file" multiple accept=".csv">
+        </div>
+        <span class="chip">H2</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="legend" id="legend"></div>
+      <p class="hint">Wczytaj pliki CSV z fazy with_indexes dla small, medium i large.</p>
+    </div>
+    <div class="card">
+      <h3>Scaling ogólny</h3>
+      <p class="hint">Średni czas wykonania scenariusza — wszystkie operacje</p>
+      <div class="chart-box"><canvas id="h2-overall"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Scaling per operacja</h3>
+      <div class="grid-2">
+        <div><h4>CREATE</h4><div class="chart-box"><canvas id="h2-create"></canvas></div></div>
+        <div><h4>READ</h4><div class="chart-box"><canvas id="h2-read"></canvas></div></div>
+        <div><h4>UPDATE</h4><div class="chart-box"><canvas id="h2-update"></canvas></div></div>
+        <div><h4>DELETE</h4><div class="chart-box"><canvas id="h2-delete"></canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Tabela podsumowujaca</h3>
+      <div class="table-wrap"><table id="h2-table"></table></div>
+    </div>
+  </div>
+
+  <script>
+    const DBS = ["PostgreSQL", "MySQL", "MongoDB", "Neo4j"];
+    const OPS = ["CREATE", "READ", "UPDATE", "DELETE"];
+    const SIZES = ["small", "medium", "large"];
+    const COLORS = { PostgreSQL:"#346da1", MySQL:"#ffa536", MongoDB:"#2fb4a2", Neo4j:"#fb5937" };
+    const charts = {};
+
+    function avg(vals){ return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null; }
+    function ms(v){ return Math.round(v * 1000 * 100) / 100; }
+    function parseCSV(text){
+      const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
+      if (!rows.length) return [];
+      const h = rows[0];
+      return rows.slice(1).map(r => Object.fromEntries(h.map((k,i) => [k, r[i] ?? ""])));
+    }
+    function detectSize(name){
+      const n = name.toLowerCase();
+      if (n.includes("small")) return "small";
+      if (n.includes("medium")) return "medium";
+      if (n.includes("large")) return "large";
+      return null;
+    }
+    function key(db,size,op){ return `${db}|${size}|${op}`; }
+    function opAvg(rows){
+      const out = {};
+      for (const db of DBS) for (const size of SIZES) for (const op of OPS){
+        const vals = rows
+          .filter(r => r.db === db && r.size === size && r.operation === op)
+          .map(r => Number(r.avg_time_s))
+          .filter(v => Number.isFinite(v));
+        out[key(db,size,op)] = avg(vals);
+      }
+      return out;
+    }
+    function overallAvg(rows){
+      const out = {};
+      for (const db of DBS) for (const size of SIZES){
+        const vals = rows
+          .filter(r => r.db === db && r.size === size)
+          .map(r => Number(r.avg_time_s))
+          .filter(v => Number.isFinite(v));
+        out[`${db}|${size}`] = avg(vals);
+      }
+      return out;
+    }
+    function destroy(id){ if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+    function lineOptions(showLegend){
+      return {
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{ legend:{ display: !!showLegend }},
+        scales:{ y:{ title:{display:true,text:"Czas [ms]"}, beginAtZero:true }, x:{ title:{display:true,text:"Rozmiar zbioru"} } }
+      };
+    }
+    function setLegend(){
+      document.getElementById("legend").innerHTML = DBS.map(db => `<span><span class="dot" style="background:${COLORS[db]}"></span>${db}</span>`).join("");
+    }
+    function drawLines(prefix, agg){
+      for (const op of OPS){
+        const id = `${prefix}-${op.toLowerCase()}`;
+        destroy(id);
+        charts[id] = new Chart(document.getElementById(id), {
+          type:"line",
+          data:{
+            labels:["small","medium","large"],
+            datasets:DBS.map(db => ({
+              label:db,
+              data:SIZES.map(size => {
+                const v = agg[key(db,size,op)];
+                return v == null ? null : ms(v);
+              }),
+              borderColor:COLORS[db],
+              backgroundColor:COLORS[db],
+              pointRadius:4,
+              tension:0.2
+            }))
+          },
+          options: lineOptions()
+        });
+      }
+    }
+    function drawOverall(agg){
+      destroy("h2-overall");
+      charts["h2-overall"] = new Chart(document.getElementById("h2-overall"), {
+        type:"line",
+        data:{
+          labels:["Small (500k)", "Medium (1M)", "Large (10M)"],
+          datasets:DBS.map(db => ({
+            label:db,
+            data:SIZES.map(size => {
+              const v = agg[`${db}|${size}`];
+              return v == null ? null : ms(v);
+            }),
+            borderColor:COLORS[db],
+            backgroundColor:COLORS[db],
+            pointRadius:4,
+            tension:0.2
+          }))
+        },
+        options: lineOptions(true)
+      });
+    }
+    function ratioClass(v){
+      if (v == null) return "";
+      if (v < 5) return "background:#e9f7ee;";
+      if (v <= 20) return "background:#fff7db;";
+      return "background:#fde8e8;";
+    }
+    function fillTable(overall){
+      const table = document.getElementById("h2-table");
+      let html = "<thead><tr><th>Baza</th><th>Small [ms]</th><th>Medium [ms]</th><th>Large [ms]</th><th>Trend</th></tr></thead><tbody>";
+      for (const db of DBS){
+        const s = overall[`${db}|small`];
+        const m = overall[`${db}|medium`];
+        const l = overall[`${db}|large`];
+        const r = s && l ? l / s : null;
+        html += `<tr>
+          <td style="font-weight:700;color:${COLORS[db]}">${db}</td>
+          <td>${s==null?"-":ms(s).toFixed(2)}</td>
+          <td>${m==null?"-":ms(m).toFixed(2)}</td>
+          <td>${l==null?"-":ms(l).toFixed(2)}</td>
+          <td style="${ratioClass(r)}">${r==null?"-":"×"+r.toFixed(1)}</td>
+        </tr>`;
+      }
+      html += "</tbody>";
+      table.innerHTML = html;
+    }
+    async function onFiles(files){
+      const rows = [];
+      for (const file of files){
+        const size = detectSize(file.name);
+        if (!size) continue;
+        const text = await file.text();
+        const parsed = parseCSV(text).map(r => ({...r, size}));
+        rows.push(...parsed);
+      }
+      const filtered = rows.filter(r => String(r.phase || "").trim() === "with_indexes");
+      if (!filtered.length){
+        alert("Brak danych with_indexes w wybranych plikach.");
+        return;
+      }
+      const fullAgg = opAvg(filtered);
+      const overall = overallAvg(filtered);
+      drawOverall(overall);
+      drawLines("h2", fullAgg);
+      fillTable(overall);
+    }
+    document.getElementById("files").addEventListener("change", async (e) => onFiles([...e.target.files]));
+    setLegend();
+  </script>
+</body>
+</html>

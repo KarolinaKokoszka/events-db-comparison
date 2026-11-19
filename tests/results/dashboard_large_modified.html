@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRUD Dashboard (large)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --pg: #346da1; --my: #ffa536; --mo: #2fb4a2; --n4:  #fb5937;
+      --header: #1f2f57;
+      --line: #d9dce6; --bg: #f2f4f8; --card: #ffffff; --text: #1e2d4a; --muted: #627091;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Segoe UI, Arial, sans-serif;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .hero {
+      background: linear-gradient(135deg, #1f2f57 0%, #293f74 100%);
+      color: #f4f7ff;
+      border-radius: 14px;
+      padding: 16px 18px 0 18px;
+      margin-bottom: 12px;
+    }
+    .hero-top {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .hero-title {
+      margin: 0 0 4px 0;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #f2f6ff;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+    }
+    .hero-meta {
+      color: #c7d7ff;
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+    }
+    .size-chip {
+      border: 1px solid #6f93de; color: #edf3ff; border-radius: 14px;
+      font-weight: 600; font-size: 12px; padding: 3px 10px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .tabs {
+      display: flex; gap: 8px; margin-bottom: 0; flex-wrap: wrap;
+    }
+    .top-controls {
+      display: flex; gap: 10px; margin-bottom: 0; flex-wrap: wrap; align-items: flex-end;
+    }
+    .tab-btn {
+      border: 1px solid #5470ad; background: rgba(255, 255, 255, 0.04); color: #e5eeff;
+      border-bottom: 0;
+      padding: 8px 14px; border-radius: 9px 9px 0 0; cursor: pointer; font-weight: 600;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+    .tab-btn:hover { background: rgba(255, 255, 255, 0.12); border-color: #7f9ddf; }
+    .tab-btn.active { background: var(--bg); color: var(--text); border-color: #cfd5e4; border-bottom: 0; }
+    .filters {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    select {
+      border: 1px solid #d2d2d2; background: #fff; border-radius: 6px; padding: 7px 10px; min-width: 260px;
+    }
+    .chart-note { margin: 4px 0 10px 0; color: var(--muted); font-size: 12px; }
+    .legend {
+      display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 10px 0; color: #444;
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+    .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .chart-box-sm { height: 180px; }
+    .chart-box-md { height: 260px; }
+    .chart-box-lg { height: 520px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .overview-bottom { margin-bottom: 12px; }
+    .kpi {
+      border: 1px solid var(--line); border-radius: 8px; background: #fcfcfc; padding: 10px;
+    }
+    .kpi .label { color: var(--muted); font-size: 12px; margin-bottom: 3px; }
+    .kpi .value { font-weight: 700; font-size: 20px; }
+    .kpi .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      border-collapse: collapse; width: 100%; background: #fff;
+    }
+    th, td {
+      border: 1px solid var(--line); padding: 6px 8px; text-align: left; font-size: 13px;
+    }
+    th { background: #f2f2f2; }
+    .ok { color: #1f7a2f; font-weight: 600; }
+    .op-chip {
+      display: inline-block; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+      border: 1px solid #d3d8e5; color: #45516f; background: #f6f7fb;
+    }
+    .op-create { background: #eef5ff; border-color: #d8e7ff; color: #355f95; }
+    .op-update { background: #eef8ee; border-color: #d8edd8; color: #3f7442; }
+    .op-read, .op-delete { background: #f1f2f5; border-color: #dfe2e8; color: #5a6071; }
+    .delta-controls { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+    .delta-mini-card { background:#f8f9fc; border:1px solid #e3e7f0; border-radius:10px; padding:12px 14px; }
+    .delta-mini-title { font-size:13px; font-weight:800; margin-bottom:6px; }
+    #table-top5 td:last-child, #table-bot5 td:last-child { font-weight:700; }
+    .delta-pos { color: #1a7a3c; }
+    .delta-neg { color: #b91c1c; }
+    .heatmap-wrap { overflow-x: auto; }
+    .heatmap {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+      background: #fff;
+    }
+    .heatmap th, .heatmap td {
+      border: 1px solid var(--line);
+      padding: 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .heatmap th { background: #f2f2f2; font-weight: 700; }
+    .heatmap th:first-child, .heatmap td:first-child { text-align: left; min-width: 280px; }
+    .heatmap td.hm-cell { font-variant-numeric: tabular-nums; }
+    @media (max-width: 1100px) {
+      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <h1 class="hero-title">Porownanie wydajnosci baz danych</h1>
+          <div class="hero-meta">Wielkosc zbioru: 10 000 000 rekordow</div>
+        </div>
+        <span class="size-chip">LARGE</span>
+      </div>
+      <div class="top-controls">
+        <div class="tabs" id="tabs"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <button id="s18-toggle" onclick="toggleS18()" style="padding:5px 12px;border-radius:6px;border:1px solid #d95f5f;background:rgba(217,95,95,0.15);cursor:pointer;font-weight:600;font-size:12px;color:#ffd0d0;">⚠️ Ukryj S18 (outlier)</button>
+          <span id="s18-info" style="font-size:11px;color:#c7d7ff;display:none;">S18 ukryty</span>
+        </div>
+      </div>
+    </div>
+    <div class="filters" id="scenario-filters">
+      <select id="phase-filter"></select>
+    </div>
+    <div class="legend" id="legend"></div>
+
+    <section id="tab-overview" class="tab-content">
+      <div class="card">
+        <h3>Najlepsza baza per operacja</h3>
+        <p class="chart-note">Najlepsza baza = najnizsza srednia wartosc dla operacji z odpowiadajacych jej 6 scenariuszy.</p>
+        <div class="grid-4" id="kpi-best"></div>
+      </div>
+      <div class="card">
+        <h3>Przegląd CRUD (średni czas per operacja i baza)</h3>
+        <p class="chart-note">Wartosc slupka = srednia z 6 scenariuszy danej operacji (CREATE/READ/UPDATE/DELETE) dla bazy; kazdy scenariusz korzysta z avg_time_s (srednia z 3 prob).</p>
+        <div class="chart-box-md"><canvas id="chart-overview"></canvas></div>
+      </div>
+      <div class="grid-2 overview-bottom">
+        <div class="card">
+          <h3>Ranking zwycięstw (najszybsza baza per scenariusz)</h3>
+          <p class="chart-note">Wygrana = najnizsze avg_time_s w scenariuszu (avg_time_s to srednia z 3 prob). Ranking liczy wygrane po wszystkich scenariuszach.</p>
+          <div class="table-wrap">
+            <table id="table-wins">
+              <thead>
+                <tr><th>Miejsce</th><th>Baza</th><th>Wygrane</th><th>Udział</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Sumaryczny czas wszystkich scenariuszy per baza</h3>
+          <p class="chart-note">Suma avg_time_s po wszystkich scenariuszach dla bazy (pokazuje laczne obciazenie testami dla danej fazy).</p>
+          <div class="chart-box-sm"><canvas id="chart-total"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-h1" class="tab-content">
+      <div class="grid-2">
+        <div class="card"><h3>CREATE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia z avg_time_s scenariuszy S1-S6, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-create"></canvas></div></div>
+        <div class="card"><h3>READ - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia z avg_time_s scenariuszy S7-S12, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-read"></canvas></div></div>
+        <div class="card"><h3>UPDATE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia z avg_time_s scenariuszy S13-S18, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-update"></canvas></div></div>
+        <div class="card"><h3>DELETE - bez vs z indeksami</h3><p class="chart-note">Dla kazdej bazy: srednia z avg_time_s scenariuszy S19-S24, osobno bez i z indeksami.</p><div class="chart-box-sm"><canvas id="chart-h1-delete"></canvas></div></div>
+      </div>
+    </section>
+
+    <section id="tab-scenarios" class="tab-content">
+      <div class="card">
+        <h3>Porównanie baz per scenariusz</h3>
+        <p class="chart-note">Kazdy slupek to avg_time_s danego scenariusza i bazy (avg_time_s = srednia z 3 prob: try_1, try_2, try_3).</p>
+        <div class="chart-box-lg"><canvas id="chart-scenarios"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Zwycięzca per scenariusz</h3>
+        <div class="table-wrap">
+          <table id="table-winners">
+            <thead>
+              <tr><th>Scenariusz</th><th>Operacja</th><th>Najlepsza baza</th><th>Czas [ms]</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-json" class="tab-content">
+      <div class="card">
+        <h3>JSON vs zwykłe scenariusze</h3>
+        <p class="chart-note">Porownanie grup: JSON (S3, S11, S17) vs zwykle (pozostale scenariusze); wartosc = srednia avg_time_s w grupie.</p>
+        <div class="chart-box-md"><canvas id="chart-json"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Podsumowanie JSON vs zwykłe</h3>
+        <div class="table-wrap">
+          <table id="table-json">
+            <thead>
+              <tr><th>Baza</th><th>JSON [ms]</th><th>Zwykłe [ms]</th><th>Różnica (JSON - zwykłe) [ms]</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-delta" class="tab-content">
+      <div class="card">
+        <h3>Heatmapa delta: zmiana czasu po dodaniu indeksów (% per scenariusz)</h3>
+        <p class="chart-note">
+          Wartosc dodatnia (zielona) = indeks pomaga. Wartosc ujemna (czerwona) = indeks szkodzi.
+          Zakres kolorow jest saturwany do +/-100%, a wartosci w pasmie +/-5% sa neutralne.
+        </p>
+        <div class="heatmap-wrap"><table id="table-heatmap-delta" class="heatmap"></table></div>
+      </div>
+      <div class="grid-2" style="margin-top:0;">
+        <div class="card">
+          <h3>TOP 5 - największa poprawa z indeksem</h3>
+          <p class="chart-note">Scenariusze (baza + operacja), dla których indeksy przyniosły największy zysk wydajnościowy.</p>
+          <div class="table-wrap">
+            <table id="table-top5">
+              <thead><tr><th>#</th><th>Scenariusz</th><th>Op.</th><th>Baza</th><th>Bez ind. [ms]</th><th>Z ind. [ms]</th><th>Δ [ms]</th><th>Δ [%]</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>TOP 5 - największe pogorszenie z indeksem</h3>
+          <p class="chart-note">Scenariusze (baza + operacja), dla których indeksy najbardziej wydłużyły czas wykonania.</p>
+          <div class="table-wrap">
+            <table id="table-bot5">
+              <thead><tr><th>#</th><th>Scenariusz</th><th>Op.</th><th>Baza</th><th>Bez ind. [ms]</th><th>Z ind. [ms]</th><th>Δ [ms]</th><th>Δ [%]</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const RECORDS = [{"db": "PostgreSQL", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.034876, "try_2": 0.004222, "try_3": 0.004396, "avg_time_s": 0.014498, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.016861, "try_2": 0.012233, "try_3": 0.008274, "avg_time_s": 0.012456, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.089076, "try_2": 0.010514, "try_3": 0.010316, "avg_time_s": 0.036635, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 5.185773, "try_2": 0.764097, "try_3": 0.489258, "avg_time_s": 2.146376, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.133699, "try_2": 0.121057, "try_3": 0.108617, "avg_time_s": 0.121124, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.022212, "try_2": 0.019199, "try_3": 0.01514, "avg_time_s": 0.01885, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.011291, "try_2": 0.00362, "try_3": 0.002414, "avg_time_s": 0.005775, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.026872, "try_2": 0.021634, "try_3": 0.020695, "avg_time_s": 0.023067, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.015792, "try_2": 0.005766, "try_3": 0.005829, "avg_time_s": 0.009129, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 0.688605, "try_2": 0.255132, "try_3": 0.220073, "avg_time_s": 0.387937, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.052701, "try_2": 0.026881, "try_3": 0.024553, "avg_time_s": 0.034712, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 8.362004, "try_2": 1.231991, "try_3": 0.915441, "avg_time_s": 3.503145, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.014549, "try_2": 0.004744, "try_3": 0.006033, "avg_time_s": 0.008442, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.013673, "try_2": 0.004971, "try_3": 0.008581, "avg_time_s": 0.009075, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.039425, "try_2": 0.024972, "try_3": 0.01596, "avg_time_s": 0.026786, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.006597, "try_2": 0.011497, "try_3": 0.007225, "avg_time_s": 0.00844, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.016072, "try_2": 0.005313, "try_3": 0.005473, "avg_time_s": 0.008953, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 32.891548, "try_2": 15.973073, "try_3": 8.460678, "avg_time_s": 19.108433, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.007226, "try_2": 0.00846, "try_3": 0.003954, "avg_time_s": 0.006547, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.020613, "try_2": 0.007652, "try_3": 0.00692, "avg_time_s": 0.011728, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.028418, "try_2": 0.023824, "try_3": 0.03405, "avg_time_s": 0.028764, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 2.619836, "try_2": 2.937391, "try_3": 2.674988, "avg_time_s": 2.744072, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.42112, "try_2": 0.030058, "try_3": 0.026489, "avg_time_s": 0.159222, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.005558, "try_2": 0.005211, "try_3": 0.005154, "avg_time_s": 0.005308, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.088615, "try_2": 0.037225, "try_3": 0.027146, "avg_time_s": 0.050995, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.058741, "try_2": 0.041844, "try_3": 0.052627, "avg_time_s": 0.051071, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.197386, "try_2": 0.054792, "try_3": 0.061207, "avg_time_s": 0.104462, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 2.816717, "try_2": 1.610641, "try_3": 1.904088, "avg_time_s": 2.110482, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.936709, "try_2": 0.189679, "try_3": 0.165363, "avg_time_s": 0.430584, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.068907, "try_2": 0.069136, "try_3": 0.068299, "avg_time_s": 0.068781, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.017718, "try_2": 0.014126, "try_3": 0.011727, "avg_time_s": 0.014524, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.192013, "try_2": 0.19165, "try_3": 0.19784, "avg_time_s": 0.193834, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.016731, "try_2": 0.010774, "try_3": 0.020437, "avg_time_s": 0.015981, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 1.506709, "try_2": 0.543342, "try_3": 0.59028, "avg_time_s": 0.88011, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.474833, "try_2": 0.374982, "try_3": 0.353942, "avg_time_s": 0.401252, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 2.071922, "try_2": 1.793112, "try_3": 2.02466, "avg_time_s": 1.963231, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.049259, "try_2": 0.016253, "try_3": 0.031593, "avg_time_s": 0.032368, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.019164, "try_2": 0.040751, "try_3": 0.019833, "avg_time_s": 0.026583, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.062703, "try_2": 0.049159, "try_3": 0.050287, "avg_time_s": 0.05405, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.021231, "try_2": 0.017586, "try_3": 0.018956, "avg_time_s": 0.019258, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.022806, "try_2": 0.022731, "try_3": 0.021165, "avg_time_s": 0.022234, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 13.553655, "try_2": 12.953806, "try_3": 10.827085, "avg_time_s": 12.444849, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.022591, "try_2": 0.022163, "try_3": 0.016171, "avg_time_s": 0.020308, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.047399, "try_2": 0.024675, "try_3": 0.022775, "avg_time_s": 0.031616, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.037762, "try_2": 0.021888, "try_3": 0.017013, "avg_time_s": 0.025554, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.114159, "try_2": 0.063621, "try_3": 0.061492, "avg_time_s": 0.079757, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.288351, "try_2": 0.217668, "try_3": 0.217471, "avg_time_s": 0.241163, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MySQL", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.023173, "try_2": 0.022707, "try_3": 0.018633, "avg_time_s": 0.021504, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.170499, "try_2": 0.00369, "try_3": 0.003052, "avg_time_s": 0.05908, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.094128, "try_2": 0.045262, "try_3": 0.085137, "avg_time_s": 0.074842, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.016587, "try_2": 0.003627, "try_3": 0.005356, "avg_time_s": 0.008523, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 4.05847, "try_2": 1.535392, "try_3": 1.161511, "avg_time_s": 2.251791, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 5.21215, "try_2": 1.958179, "try_3": 1.860545, "avg_time_s": 3.010291, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.289664, "try_2": 0.228141, "try_3": 0.186296, "avg_time_s": 0.2347, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.021564, "try_2": 0.003591, "try_3": 0.006527, "avg_time_s": 0.010561, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 4.523545, "try_2": 0.113717, "try_3": 0.106053, "avg_time_s": 1.581105, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.007196, "try_2": 0.00426, "try_3": 0.00496, "avg_time_s": 0.005472, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 1.459765, "try_2": 0.90486, "try_3": 0.706366, "avg_time_s": 1.023664, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.174554, "try_2": 0.251077, "try_3": 0.12294, "avg_time_s": 0.182857, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 3.297205, "try_2": 1.360582, "try_3": 1.760683, "avg_time_s": 2.13949, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.004862, "try_2": 0.011713, "try_3": 0.005781, "avg_time_s": 0.007452, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.031143, "try_2": 0.009715, "try_3": 0.010526, "avg_time_s": 0.017128, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.634096, "try_2": 0.323368, "try_3": 0.484909, "avg_time_s": 0.480791, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.005928, "try_2": 0.004601, "try_3": 0.00577, "avg_time_s": 0.005433, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.004772, "try_2": 0.002812, "try_3": 0.002386, "avg_time_s": 0.003323, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 29.474123, "try_2": 17.791378, "try_3": 17.844674, "avg_time_s": 21.703392, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.003459, "try_2": 0.002609, "try_3": 0.003211, "avg_time_s": 0.003093, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.00281, "try_2": 0.006868, "try_3": 0.003912, "avg_time_s": 0.00453, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.002647, "try_2": 0.002411, "try_3": 0.00221, "avg_time_s": 0.002423, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.004008, "try_2": 0.001968, "try_3": 0.002178, "avg_time_s": 0.002718, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.001828, "try_2": 0.001832, "try_3": 0.002139, "avg_time_s": 0.001933, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "MongoDB", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.004583, "try_2": 0.002084, "try_3": 0.002615, "avg_time_s": 0.003094, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 7.289198, "try_2": 0.038477, "try_3": 0.021502, "avg_time_s": 2.449726, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.695943, "try_2": 0.070889, "try_3": 0.057523, "avg_time_s": 0.274785, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.180699, "try_2": 0.013659, "try_3": 0.011228, "avg_time_s": 0.068529, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 2.833935, "try_2": 0.286809, "try_3": 0.11959, "avg_time_s": 1.080111, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.238636, "try_2": 0.080683, "try_3": 0.098544, "avg_time_s": 0.139288, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.289329, "try_2": 0.081419, "try_3": 0.0689, "avg_time_s": 0.146549, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.049386, "try_2": 0.00409, "try_3": 0.005069, "avg_time_s": 0.019515, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 3.81822, "try_2": 1.156301, "try_3": 1.227362, "avg_time_s": 2.067294, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.17596, "try_2": 0.009551, "try_3": 0.005973, "avg_time_s": 0.063828, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 3.278771, "try_2": 0.927739, "try_3": 0.958352, "avg_time_s": 1.721621, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 1.773786, "try_2": 1.666557, "try_3": 1.697976, "avg_time_s": 1.712773, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 4.47985, "try_2": 1.311956, "try_3": 1.255219, "avg_time_s": 2.349008, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.330159, "try_2": 0.006492, "try_3": 0.016645, "avg_time_s": 0.117765, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.156253, "try_2": 0.009379, "try_3": 0.009306, "avg_time_s": 0.058313, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.923704, "try_2": 0.498523, "try_3": 0.47569, "avg_time_s": 0.632639, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.055772, "try_2": 0.006632, "try_3": 0.006763, "avg_time_s": 0.023056, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.089887, "try_2": 0.008476, "try_3": 0.009536, "avg_time_s": 0.035966, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 21.229992, "try_2": 7.395149, "try_3": 6.035054, "avg_time_s": 11.553398, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.318036, "try_2": 0.015525, "try_3": 0.011766, "avg_time_s": 0.115109, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.094952, "try_2": 0.011327, "try_3": 0.014964, "avg_time_s": 0.040414, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.048693, "try_2": 0.008697, "try_3": 0.008774, "avg_time_s": 0.022055, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.602168, "try_2": 0.556784, "try_3": 0.560511, "avg_time_s": 0.573154, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.866712, "try_2": 0.721555, "try_3": 0.709698, "avg_time_s": 0.765988, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "Neo4j", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.041801, "try_2": 0.008556, "try_3": 0.012458, "avg_time_s": 0.020938, "phase": "without_indexes", "size": "large", "timestamp": "2026-05-12 11:12:42"}, {"db": "PostgreSQL", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.032011, "try_2": 0.00551, "try_3": 0.005561, "avg_time_s": 0.014361, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.014824, "try_2": 0.011476, "try_3": 0.011772, "avg_time_s": 0.012691, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.077788, "try_2": 0.011046, "try_3": 0.009841, "avg_time_s": 0.032892, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 5.580001, "try_2": 1.08143, "try_3": 1.298672, "avg_time_s": 2.653368, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.450634, "try_2": 0.147451, "try_3": 0.123547, "avg_time_s": 0.240544, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.064974, "try_2": 0.026991, "try_3": 0.025007, "avg_time_s": 0.038991, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.047711, "try_2": 0.004151, "try_3": 0.008607, "avg_time_s": 0.020156, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.055451, "try_2": 0.017041, "try_3": 0.020506, "avg_time_s": 0.030999, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.023037, "try_2": 0.006988, "try_3": 0.006863, "avg_time_s": 0.012296, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 0.549062, "try_2": 0.188364, "try_3": 0.190742, "avg_time_s": 0.309389, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.040931, "try_2": 0.936924, "try_3": 0.057246, "avg_time_s": 0.345034, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 1.894088, "try_2": 1.387989, "try_3": 1.313601, "avg_time_s": 1.531893, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.011975, "try_2": 0.005062, "try_3": 0.005038, "avg_time_s": 0.007358, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.006711, "try_2": 0.010138, "try_3": 0.007222, "avg_time_s": 0.008024, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.066276, "try_2": 0.015571, "try_3": 0.01196, "avg_time_s": 0.031269, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.016403, "try_2": 0.007108, "try_3": 0.009129, "avg_time_s": 0.01088, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.008572, "try_2": 0.004738, "try_3": 0.008024, "avg_time_s": 0.007111, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 28.535948, "try_2": 19.416738, "try_3": 17.387621, "avg_time_s": 21.780102, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.005074, "try_2": 0.004164, "try_3": 0.004729, "avg_time_s": 0.004656, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.010032, "try_2": 0.008216, "try_3": 0.006106, "avg_time_s": 0.008118, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.007331, "try_2": 0.004205, "try_3": 0.004511, "avg_time_s": 0.005349, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.013458, "try_2": 0.006984, "try_3": 0.005084, "avg_time_s": 0.008509, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.088177, "try_2": 0.030811, "try_3": 0.024721, "avg_time_s": 0.047903, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "PostgreSQL", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.00761, "try_2": 0.004515, "try_3": 0.004005, "avg_time_s": 0.005377, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.104367, "try_2": 0.019186, "try_3": 0.017066, "avg_time_s": 0.046873, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.035699, "try_2": 0.030097, "try_3": 0.027709, "avg_time_s": 0.031168, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.101033, "try_2": 0.044179, "try_3": 0.055137, "avg_time_s": 0.066783, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 1.713244, "try_2": 1.064622, "try_3": 1.196143, "avg_time_s": 1.32467, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.329148, "try_2": 0.165936, "try_3": 0.137672, "avg_time_s": 0.210919, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.060755, "try_2": 0.038803, "try_3": 0.044981, "avg_time_s": 0.04818, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.006594, "try_2": 0.030597, "try_3": 0.006297, "avg_time_s": 0.014496, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.17223, "try_2": 0.132808, "try_3": 0.127618, "avg_time_s": 0.144219, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.013567, "try_2": 0.007817, "try_3": 0.006988, "avg_time_s": 0.009457, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 0.97997, "try_2": 0.605985, "try_3": 0.652151, "avg_time_s": 0.746035, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.373748, "try_2": 0.276971, "try_3": 0.26637, "avg_time_s": 0.305696, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 1.757685, "try_2": 1.363437, "try_3": 1.489737, "avg_time_s": 1.536953, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.020659, "try_2": 0.015282, "try_3": 0.006487, "avg_time_s": 0.014143, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.015194, "try_2": 0.017389, "try_3": 0.006584, "avg_time_s": 0.013056, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.037999, "try_2": 0.049239, "try_3": 0.038364, "avg_time_s": 0.041867, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.035393, "try_2": 0.017306, "try_3": 0.014479, "avg_time_s": 0.022393, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.019679, "try_2": 0.012019, "try_3": 0.014745, "avg_time_s": 0.015481, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 13.857096, "try_2": 7.539496, "try_3": 10.048943, "avg_time_s": 10.481845, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.031881, "try_2": 0.027314, "try_3": 0.019617, "avg_time_s": 0.026271, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.053666, "try_2": 0.034237, "try_3": 0.022559, "avg_time_s": 0.036821, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.043047, "try_2": 0.025355, "try_3": 0.028288, "avg_time_s": 0.03223, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.147315, "try_2": 0.068437, "try_3": 0.050809, "avg_time_s": 0.088854, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.300922, "try_2": 0.205024, "try_3": 0.212089, "avg_time_s": 0.239345, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MySQL", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.022934, "try_2": 0.019709, "try_3": 0.02233, "avg_time_s": 0.021658, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 0.107699, "try_2": 0.002856, "try_3": 0.002766, "avg_time_s": 0.037774, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.047109, "try_2": 0.080533, "try_3": 0.08361, "avg_time_s": 0.070417, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.067338, "try_2": 0.005663, "try_3": 0.005557, "avg_time_s": 0.026186, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 1.661341, "try_2": 0.586772, "try_3": 0.398187, "avg_time_s": 0.8821, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.323358, "try_2": 0.180971, "try_3": 0.185878, "avg_time_s": 0.230069, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.058925, "try_2": 0.048051, "try_3": 0.042721, "avg_time_s": 0.049899, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.005434, "try_2": 0.005337, "try_3": 0.004645, "avg_time_s": 0.005139, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.706577, "try_2": 0.210023, "try_3": 0.190678, "avg_time_s": 0.369093, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.00363, "try_2": 0.001743, "try_3": 0.005321, "avg_time_s": 0.003565, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 1.520283, "try_2": 0.69183, "try_3": 0.637732, "avg_time_s": 0.949948, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 0.180654, "try_2": 0.153365, "try_3": 0.293228, "avg_time_s": 0.209082, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 2.064708, "try_2": 1.207489, "try_3": 1.169363, "avg_time_s": 1.48052, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.009414, "try_2": 0.006405, "try_3": 0.004189, "avg_time_s": 0.006669, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.007348, "try_2": 0.004178, "try_3": 0.02858, "avg_time_s": 0.013369, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.20504, "try_2": 0.145683, "try_3": 0.143897, "avg_time_s": 0.164873, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.005504, "try_2": 0.005709, "try_3": 0.004289, "avg_time_s": 0.005167, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.005889, "try_2": 0.016536, "try_3": 0.005357, "avg_time_s": 0.009261, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 28.109192, "try_2": 18.476795, "try_3": 18.700138, "avg_time_s": 21.762042, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.002291, "try_2": 0.004637, "try_3": 0.004729, "avg_time_s": 0.003886, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.005178, "try_2": 0.009191, "try_3": 0.011261, "avg_time_s": 0.008543, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.003652, "try_2": 0.002893, "try_3": 0.002754, "avg_time_s": 0.0031, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.008175, "try_2": 0.0037, "try_3": 0.002068, "avg_time_s": 0.004648, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.003208, "try_2": 0.003156, "try_3": 0.003938, "avg_time_s": 0.003434, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "MongoDB", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.003311, "try_2": 0.004386, "try_3": 0.003538, "avg_time_s": 0.003745, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 1, "operation": "CREATE", "scenario_name": "Wstaw 1 użytkownika", "json_related": false, "try_1": 2.386135, "try_2": 0.041136, "try_3": 0.016433, "avg_time_s": 0.814568, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 2, "operation": "CREATE", "scenario_name": "Wstaw 100 użytkowników wsadowo", "json_related": false, "try_1": 0.537549, "try_2": 0.119283, "try_3": 0.108802, "avg_time_s": 0.255211, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 3, "operation": "CREATE", "scenario_name": "Wstaw event z danymi JSON", "json_related": true, "try_1": 0.137458, "try_2": 0.009234, "try_3": 0.008813, "avg_time_s": 0.051835, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 4, "operation": "CREATE", "scenario_name": "Wstaw booking z platnoscia", "json_related": false, "try_1": 2.544672, "try_2": 0.634632, "try_3": 0.346242, "avg_time_s": 1.175182, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 5, "operation": "CREATE", "scenario_name": "Wstaw recenzje eventu", "json_related": false, "try_1": 0.216912, "try_2": 0.075858, "try_3": 0.260082, "avg_time_s": 0.184284, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 6, "operation": "CREATE", "scenario_name": "Wstaw bilet powiazany z eventem", "json_related": false, "try_1": 0.289478, "try_2": 0.076381, "try_3": 0.112745, "avg_time_s": 0.159535, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 7, "operation": "READ", "scenario_name": "SELECT user po emailu", "json_related": false, "try_1": 0.043841, "try_2": 0.002396, "try_3": 0.002293, "avg_time_s": 0.016177, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 8, "operation": "READ", "scenario_name": "SELECT eventy po statusie i dacie", "json_related": false, "try_1": 0.692773, "try_2": 0.473328, "try_3": 0.533912, "avg_time_s": 0.566671, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 9, "operation": "READ", "scenario_name": "SELECT booking z JOINami", "json_related": false, "try_1": 0.18081, "try_2": 0.005131, "try_3": 0.004625, "avg_time_s": 0.063522, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 10, "operation": "READ", "scenario_name": "Agregacja: srednia ocena eventu", "json_related": false, "try_1": 7.08035, "try_2": 1.173436, "try_3": 0.945701, "avg_time_s": 3.066496, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 11, "operation": "READ", "scenario_name": "Filtr po polu JSON (age_limit)", "json_related": true, "try_1": 1.104339, "try_2": 1.180695, "try_3": 1.063134, "avg_time_s": 1.116056, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 12, "operation": "READ", "scenario_name": "Top eventy po liczbie bookingow", "json_related": false, "try_1": 4.426245, "try_2": 1.422569, "try_3": 1.344641, "avg_time_s": 2.397818, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 13, "operation": "UPDATE", "scenario_name": "Zmień status bookingu", "json_related": false, "try_1": 0.045316, "try_2": 0.048192, "try_3": 0.004072, "avg_time_s": 0.032527, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 14, "operation": "UPDATE", "scenario_name": "Aktualizuj available_quantity", "json_related": false, "try_1": 0.034861, "try_2": 0.006183, "try_3": 0.007564, "avg_time_s": 0.016203, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 15, "operation": "UPDATE", "scenario_name": "Masowy UPDATE statusu eventów", "json_related": false, "try_1": 0.579769, "try_2": 0.459457, "try_3": 0.421928, "avg_time_s": 0.487051, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 16, "operation": "UPDATE", "scenario_name": "Aktualizuj dane użytkownika", "json_related": false, "try_1": 0.018857, "try_2": 0.005867, "try_3": 0.003874, "avg_time_s": 0.009533, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 17, "operation": "UPDATE", "scenario_name": "Aktualizuj pole JSON (languages)", "json_related": true, "try_1": 0.051138, "try_2": 0.00465, "try_3": 0.005687, "avg_time_s": 0.020492, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 18, "operation": "UPDATE", "scenario_name": "Zmień ceny biletów VIP o 10%", "json_related": false, "try_1": 22.97754, "try_2": 5.102709, "try_3": 4.246726, "avg_time_s": 10.775658, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 19, "operation": "DELETE", "scenario_name": "Usuń recenzję", "json_related": false, "try_1": 0.078772, "try_2": 0.008004, "try_3": 0.012162, "avg_time_s": 0.032979, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 20, "operation": "DELETE", "scenario_name": "Usuń booking (cascade)", "json_related": false, "try_1": 0.055272, "try_2": 0.011429, "try_3": 0.011589, "avg_time_s": 0.026097, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 21, "operation": "DELETE", "scenario_name": "Usuń użytkownika (cascade)", "json_related": false, "try_1": 0.02163, "try_2": 0.006159, "try_3": 0.005875, "avg_time_s": 0.011221, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 22, "operation": "DELETE", "scenario_name": "Usuń eventy cancelled", "json_related": false, "try_1": 0.066309, "try_2": 0.011892, "try_3": 0.015572, "avg_time_s": 0.031258, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 23, "operation": "DELETE", "scenario_name": "Usuń stare płatności", "json_related": false, "try_1": 0.857843, "try_2": 0.668279, "try_3": 0.693443, "avg_time_s": 0.739855, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}, {"db": "Neo4j", "scenario_id": 24, "operation": "DELETE", "scenario_name": "Usun testowy bilet", "json_related": false, "try_1": 0.036491, "try_2": 0.008234, "try_3": 0.015453, "avg_time_s": 0.020059, "phase": "with_indexes", "size": "large", "timestamp": "2026-05-12 11:18:30"}];
+    const SCENARIOS = [{"id": 1, "operation": "CREATE", "name": "Wstaw 1 użytkownika", "json_related": false}, {"id": 2, "operation": "CREATE", "name": "Wstaw 100 użytkowników wsadowo", "json_related": false}, {"id": 3, "operation": "CREATE", "name": "Wstaw event z danymi JSON", "json_related": true}, {"id": 4, "operation": "CREATE", "name": "Wstaw booking z platnoscia", "json_related": false}, {"id": 5, "operation": "CREATE", "name": "Wstaw recenzje eventu", "json_related": false}, {"id": 6, "operation": "CREATE", "name": "Wstaw bilet powiazany z eventem", "json_related": false}, {"id": 7, "operation": "READ", "name": "SELECT user po emailu", "json_related": false}, {"id": 8, "operation": "READ", "name": "SELECT eventy po statusie i dacie", "json_related": false}, {"id": 9, "operation": "READ", "name": "SELECT booking z JOINami", "json_related": false}, {"id": 10, "operation": "READ", "name": "Agregacja: srednia ocena eventu", "json_related": false}, {"id": 11, "operation": "READ", "name": "Filtr po polu JSON (age_limit)", "json_related": true}, {"id": 12, "operation": "READ", "name": "Top eventy po liczbie bookingow", "json_related": false}, {"id": 13, "operation": "UPDATE", "name": "Zmień status bookingu", "json_related": false}, {"id": 14, "operation": "UPDATE", "name": "Aktualizuj available_quantity", "json_related": false}, {"id": 15, "operation": "UPDATE", "name": "Masowy UPDATE statusu eventów", "json_related": false}, {"id": 16, "operation": "UPDATE", "name": "Aktualizuj dane użytkownika", "json_related": false}, {"id": 17, "operation": "UPDATE", "name": "Aktualizuj pole JSON (languages)", "json_related": true}, {"id": 18, "operation": "UPDATE", "name": "Zmień ceny biletów VIP o 10%", "json_related": false}, {"id": 19, "operation": "DELETE", "name": "Usuń recenzję", "json_related": false}, {"id": 20, "operation": "DELETE", "name": "Usuń booking (cascade)", "json_related": false}, {"id": 21, "operation": "DELETE", "name": "Usuń użytkownika (cascade)", "json_related": false}, {"id": 22, "operation": "DELETE", "name": "Usuń eventy cancelled", "json_related": false}, {"id": 23, "operation": "DELETE", "name": "Usuń stare płatności", "json_related": false}, {"id": 24, "operation": "DELETE", "name": "Usun testowy bilet", "json_related": false}];
+    const DBS = ["PostgreSQL", "MySQL", "MongoDB", "Neo4j"];
+    const COLORS = {
+      "PostgreSQL": "#346da1",
+      "MySQL": "#ffa536",
+      "MongoDB": "#2fb4a2",
+      "Neo4j": " #fb5937",
+    };
+    const OPS = ["CREATE", "READ", "UPDATE", "DELETE"];
+    const TAB_DEF = [
+      { id: "overview", label: "Przegląd CRUD" },
+      { id: "h1", label: "Wpływ indeksów" },
+      { id: "delta", label: "Wpływ indeksów (szczegóły)" },
+      { id: "scenarios", label: "Scenariusze szczegółowo" },
+      { id: "json", label: "JSON vs zwykłe" },
+    ];
+
+    const scenarioMap = Object.fromEntries(SCENARIOS.map(s => [String(s.id), s]));
+    const records = RECORDS.map(r => ({
+      ...r,
+      avg_time_s: Number(r.avg_time_s),
+      try_1: r.try_1 == null ? null : Number(r.try_1),
+      try_2: r.try_2 == null ? null : Number(r.try_2),
+      try_3: r.try_3 == null ? null : Number(r.try_3),
+      scenario_id: Number(r.scenario_id),
+      json_related: String(r.json_related).toLowerCase() === "true",
+    })).filter(r => r.avg_time_s > 0);
+
+    const charts = {};
+    function ms(v) { return Math.round(v * 1000 * 100) / 100; }
+    function avg(vals) {
+      if (!vals.length) return null;
+      return vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    function by(filters = {}) {
+      return records.filter(r => {
+        if (filters.phase && filters.phase !== "all" && r.phase !== filters.phase) return false;
+        if (filters.operation && filters.operation !== "all" && r.operation !== filters.operation) return false;
+        return true;
+      });
+    }
+    function groupedAvg(rows, keyFn) {
+      const buckets = new Map();
+      for (const r of rows) {
+        const key = keyFn(r);
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(r.avg_time_s);
+      }
+      const out = {};
+      for (const [k, vals] of buckets.entries()) out[k] = avg(vals);
+      return out;
+    }
+    function fmtMs(v) {
+      if (v == null || Number.isNaN(v)) return "-";
+      return ms(v).toFixed(2);
+    }
+    function setLegend() {
+      document.getElementById("legend").innerHTML = DBS.map(db =>
+        `<span class="legend-item"><span class="dot" style="background:${COLORS[db]}"></span>${db}</span>`
+      ).join("");
+    }
+
+    function activeTabId() {
+      return document.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    }
+
+    function setActiveTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      document.getElementById(`tab-${tabId}`).classList.add("active");
+
+      // Filtry pokazujemy tylko w zakladce scenariuszy.
+      const filtersEl = document.getElementById("scenario-filters");
+      filtersEl.style.display = tabId === "scenarios" ? "flex" : "none";
+      const legendEl = document.getElementById("legend");
+      legendEl.style.display = (tabId === "h1" || tabId === "json" || tabId === "delta") ? "none" : "flex";
+      renderAll();
+    }
+
+    function initTabs() {
+      const tabsEl = document.getElementById("tabs");
+      tabsEl.innerHTML = TAB_DEF.map((t) =>
+        `<button class="tab-btn" data-tab="${t.id}">${t.label}</button>`
+      ).join("");
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
+      });
+      setActiveTab("overview");
+    }
+
+    let hideS18 = false;
+    function toggleS18() {
+      hideS18 = !hideS18;
+      const btn = document.getElementById("s18-toggle");
+      const info = document.getElementById("s18-info");
+      if (hideS18) {
+        btn.textContent = "✅ Pokaż S18 (outlier)";
+        btn.style.color = "#1a7a3c";
+        info.style.display = "inline";
+      } else {
+        btn.textContent = "⚠️ Ukryj S18 (outlier)";
+        btn.style.color = "#b91c1c";
+        info.style.display = "none";
+      }
+      renderAll();
+    }
+    function filteredRecords(rows) {
+      if (!hideS18) return rows;
+      return rows.filter(r => r.scenario_id !== 18);
+    }
+    function initFilters() {
+      const phaseSel = document.getElementById("phase-filter");
+      phaseSel.innerHTML = `
+        <option value="with_indexes">Z indeksami</option>
+        <option value="without_indexes">Bez indeksów</option>
+      `;
+      phaseSel.value = "with_indexes";
+      phaseSel.addEventListener("change", renderAll);
+    }
+
+    function baseBarOptionsMs(indexAxis = "x", xTitle = "", yTitle = "Czas [ms]") {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        indexAxis,
+        plugins: { legend: { labels: { boxWidth: 12 } } },
+        scales: {
+          y: {
+            title: { display: !!yTitle, text: yTitle },
+            beginAtZero: true,
+            ticks: { callback: (v) => `${v} ms` },
+          },
+          x: {
+            title: { display: !!xTitle, text: xTitle },
+            ticks: { autoSkip: false },
+          },
+        },
+      };
+    }
+
+    function scenarioHorizontalOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: { legend: { labels: { boxWidth: 12 } } },
+        scales: {
+          x: {
+            title: { display: true, text: "Czas [ms]" },
+            ticks: { callback: (v) => `${v} ms` },
+          },
+          y: {
+            title: { display: true, text: "Scenariusz" },
+            ticks: { autoSkip: false },
+          },
+        },
+      };
+    }
+
+    function makeChart(id, cfg) {
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(document.getElementById(id), cfg);
+    }
+
+    function renderOverview() {
+      const rows = filteredRecords(by({ phase: "with_indexes", operation: "all" }));
+      const perDbOp = {};
+      for (const db of DBS) {
+        perDbOp[db] = {};
+        for (const op of OPS) {
+          const vals = rows.filter(r => r.db === db && r.operation === op).map(r => r.avg_time_s);
+          perDbOp[db][op] = avg(vals);
+        }
+      }
+      makeChart("chart-overview", {
+        type: "bar",
+        data: {
+          labels: OPS,
+          datasets: DBS.map(db => ({
+            label: db,
+            data: OPS.map(op => perDbOp[db][op] == null ? 0 : ms(perDbOp[db][op])),
+            backgroundColor: COLORS[db] + "bb",
+            borderColor: COLORS[db],
+            borderWidth: 1,
+          })),
+        },
+        options: baseBarOptionsMs("x", "Operacja", "Czas [ms] (srednia)"),
+      });
+
+      const kpi = document.getElementById("kpi-best");
+      kpi.innerHTML = OPS.map(op => {
+        let bestDb = null;
+        let bestVal = Infinity;
+        for (const db of DBS) {
+          const v = perDbOp[db][op];
+          if (v != null && v < bestVal) { bestVal = v; bestDb = db; }
+        }
+        return `
+          <div class="kpi">
+            <div class="label">${op}</div>
+            <div class="value" style="color:${COLORS[bestDb] || "#222"}">${bestDb || "-"}</div>
+            <div class="sub">${bestVal < Infinity ? ms(bestVal) + " ms" : "-"}</div>
+          </div>
+        `;
+      }).join("");
+
+      const scenarioIds = [...new Set(rows.map(r => r.scenario_id))].sort((a, b) => a - b);
+      const wins = Object.fromEntries(DBS.map(db => [db, 0]));
+      for (const sid of scenarioIds) {
+        const rowsSid = rows.filter(r => r.scenario_id === sid).sort((a, b) => a.avg_time_s - b.avg_time_s);
+        if (rowsSid.length) wins[rowsSid[0].db] += 1;
+      }
+      const ranking = DBS.map(db => ({
+        db,
+        wins: wins[db],
+        share: scenarioIds.length ? (wins[db] / scenarioIds.length) * 100 : 0,
+      })).sort((a, b) => b.wins - a.wins);
+      const winsBody = document.querySelector("#table-wins tbody");
+      winsBody.innerHTML = ranking.map((r, idx) => `<tr>
+        <td>${idx + 1}</td>
+        <td style="color:${COLORS[r.db]};font-weight:600">${r.db}</td>
+        <td>${r.wins}</td>
+        <td>${r.share.toFixed(1)}%</td>
+      </tr>`).join("");
+
+      const sumByDb = {};
+      for (const db of DBS) {
+        const vals = rows.filter(r => r.db === db).map(r => r.avg_time_s);
+        sumByDb[db] = vals.reduce((a, b) => a + b, 0);
+      }
+      makeChart("chart-total", {
+        type: "bar",
+        data: {
+          labels: DBS,
+          datasets: [{
+            label: "Suma czasów [ms]",
+            data: DBS.map(db => ms(sumByDb[db] || 0)),
+            backgroundColor: DBS.map(db => COLORS[db] + "bb"),
+            borderColor: DBS.map(db => COLORS[db]),
+            borderWidth: 1,
+          }]
+        },
+        options: baseBarOptionsMs("x", "Baza danych", "Czas [ms]"),
+      });
+    }
+
+    function renderH1() {
+      const ids = {
+        CREATE: "chart-h1-create",
+        READ: "chart-h1-read",
+        UPDATE: "chart-h1-update",
+        DELETE: "chart-h1-delete",
+      };
+      for (const op of OPS) {
+        const withRows = filteredRecords(by({ phase: "with_indexes", operation: op }));
+        const withoutRows = filteredRecords(by({ phase: "without_indexes", operation: op }));
+
+        const dWith = groupedAvg(withRows, r => r.db);
+        const dWithout = groupedAvg(withoutRows, r => r.db);
+
+        makeChart(ids[op], {
+          type: "bar",
+          data: {
+            labels: DBS,
+            datasets: [
+              {
+                label: "Bez indeksów",
+                data: DBS.map(db => ms(dWithout[db] || 0)),
+                backgroundColor: "#d95f5f99",
+                borderColor: "#d95f5f",
+                borderWidth: 1,
+                categoryPercentage: 0.7,
+                barPercentage: 0.9,
+              },
+              {
+                label: "Z indeksami",
+                data: DBS.map(db => ms(dWith[db] || 0)),
+                backgroundColor: "#4caf5099",
+                borderColor: "#4caf50",
+                borderWidth: 1,
+                categoryPercentage: 0.7,
+                barPercentage: 0.9,
+              },
+            ],
+          },
+          options: baseBarOptionsMs("x", "Baza danych", "Czas [ms] (srednia)"),
+        });
+      }
+    }
+
+    function renderScenarioHeatmap(phase) {
+      const rows = filteredRecords(by({ phase, operation: "all" }));
+      const scRows = rows.slice().sort((a, b) => a.scenario_id - b.scenario_id);
+      const scenarioIds = [...new Set(scRows.map(r => r.scenario_id))];
+      const labels = scenarioIds.map(sid => {
+        const meta = scenarioMap[String(sid)];
+        return meta ? `S${sid}: ${meta.name}` : `S${sid}`;
+      });
+      makeChart("chart-scenarios", {
+        type: "bar",
+        data: {
+          labels,
+          datasets: DBS.map(db => {
+            const bySc = Object.fromEntries(
+              scRows.filter(r => r.db === db).map(r => [r.scenario_id, r.avg_time_s])
+            );
+            return {
+              label: db,
+              data: scenarioIds.map(sid => ms(bySc[sid] || 0)),
+              backgroundColor: COLORS[db] + "bb",
+              borderColor: COLORS[db],
+              borderWidth: 1,
+            };
+          }),
+        },
+        options: scenarioHorizontalOptions(),
+      });
+
+      const tbody = document.querySelector("#table-winners tbody");
+      const winners = [];
+      for (const sid of scenarioIds) {
+        const rowsSid = rows.filter(r => r.scenario_id === sid);
+        if (!rowsSid.length) continue;
+        rowsSid.sort((a, b) => a.avg_time_s - b.avg_time_s);
+        winners.push(rowsSid[0]);
+      }
+      tbody.innerHTML = winners.map(w => {
+        const meta = scenarioMap[String(w.scenario_id)];
+        const name = meta ? `S${w.scenario_id}: ${meta.name}` : `S${w.scenario_id}`;
+        const opClass = `op-${(w.operation || "").toLowerCase()}`;
+        return `<tr>
+          <td>${name}</td>
+          <td><span class="op-chip ${opClass}">${w.operation}</span></td>
+          <td class="ok">${w.db}</td>
+          <td>${fmtMs(w.avg_time_s)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderJson() {
+      const rows = filteredRecords(by({ phase: "with_indexes", operation: "all" }));
+      const nonJsonRows = rows.filter(r => !r.json_related);
+      const jsonRows = rows.filter(r => r.json_related);
+
+      const jsonByDb = groupedAvg(jsonRows, r => r.db);
+      const nonJsonByDb = groupedAvg(nonJsonRows, r => r.db);
+
+      makeChart("chart-json", {
+        type: "bar",
+        data: {
+          labels: DBS,
+          datasets: [
+            {
+              label: "Zwykłe scenariusze",
+              data: DBS.map(db => ms(nonJsonByDb[db] || 0)),
+              backgroundColor: "#3498db99",
+              borderColor: "#3498db",
+              borderWidth: 1,
+            },
+            {
+              label: "Scenariusze JSON",
+              data: DBS.map(db => ms(jsonByDb[db] || 0)),
+              backgroundColor: "#e67e2299",
+              borderColor: "#e67e22",
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: baseBarOptionsMs("x", "Baza danych", "Czas [ms] (srednia)"),
+      });
+
+      const tbody = document.querySelector("#table-json tbody");
+      tbody.innerHTML = DBS.map(db => {
+        const j = jsonByDb[db] || 0;
+        const n = nonJsonByDb[db] || 0;
+        return `<tr>
+          <td>${db}</td>
+          <td>${ms(j)}</td>
+          <td>${ms(n)}</td>
+          <td>${ms(j - n)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function computeDeltas() {
+      const deltas = [];
+      const scenariosToUse = hideS18 ? SCENARIOS.filter(s => s.id !== 18) : SCENARIOS;
+      for (const sc of scenariosToUse) {
+        for (const db of DBS) {
+          const wo = records.find(r => r.db === db && r.scenario_id === Number(sc.id) && r.phase === "without_indexes");
+          const wi = records.find(r => r.db === db && r.scenario_id === Number(sc.id) && r.phase === "with_indexes");
+          if (!wo || !wi) continue;
+          const woMs = wo.avg_time_s * 1000;
+          const wiMs = wi.avg_time_s * 1000;
+          const deltaMs = woMs - wiMs;
+          const deltaPct = woMs > 0 ? (deltaMs / woMs) * 100 : 0;
+          deltas.push({ db, sc, woMs, wiMs, deltaPct, deltaMs });
+        }
+      }
+      return deltas;
+    }
+
+    function deltaCellColor(pct) {
+      const absPct = Math.abs(pct);
+      if (absPct <= 5) return { bg: "#eceff3", fg: "#566074" };
+      if (pct > 0) {
+        const t = Math.min(pct, 100) / 100;
+        const light = 88 - 48 * t;
+        return { bg: `hsl(132, 58%, ${light}%)`, fg: light < 50 ? "#fff" : "#12321e" };
+      }
+      const t = Math.min(absPct, 100) / 100;
+      const light = 88 - 48 * t;
+      return { bg: `hsl(2, 68%, ${light}%)`, fg: light < 50 ? "#fff" : "#3f1111" };
+    }
+
+    function renderDelta() {
+      const allDeltas = computeDeltas();
+      const scenarioIds = SCENARIOS.map(s => Number(s.id)).sort((a, b) => a - b);
+      const table = document.getElementById("table-heatmap-delta");
+      if (table) {
+        let html = "<thead><tr><th>Scenariusz</th>" + DBS.map(db => `<th>${db}</th>`).join("") + "</tr></thead><tbody>";
+        for (const sid of scenarioIds) {
+          const meta = scenarioMap[String(sid)];
+          const name = meta ? `S${sid}: ${meta.name}` : `S${sid}`;
+          html += `<tr><td>${name}</td>`;
+          for (const db of DBS) {
+            const d = allDeltas.find(x => Number(x.sc.id) === sid && x.db === db);
+            if (!d) {
+              html += `<td class="hm-cell" style="background:#f5f7fb;color:#667;">-</td>`;
+              continue;
+            }
+            const colors = deltaCellColor(d.deltaPct);
+            const label = `${d.deltaPct >= 0 ? "+" : ""}${d.deltaPct.toFixed(1)}%`;
+            const op = meta ? meta.operation : "-";
+            const tip = `${name} | ${db} | ${op} | bez: ${d.woMs.toFixed(2)} ms | z: ${d.wiMs.toFixed(2)} ms | delta: ${d.deltaMs.toFixed(2)} ms | ${label}`;
+            html += `<td class="hm-cell" title="${tip}" style="background:${colors.bg};color:${colors.fg};">${label}</td>`;
+          }
+          html += "</tr>";
+        }
+        html += "</tbody>";
+        table.innerHTML = html;
+      }
+      allDeltas.sort((a, b) => b.deltaPct - a.deltaPct);
+      const top5 = allDeltas.slice(0, 5);
+      const bot5 = allDeltas.slice(-5).reverse();
+
+      function fillTable(id, rows, isTop) {
+        const tbody = document.querySelector(`#${id} tbody`);
+        if (!tbody) return;
+        tbody.innerHTML = rows.map((d, i) => {
+          const cls = d.deltaPct >= 0 ? "delta-pos" : "delta-neg";
+          const pct = `${d.deltaPct >= 0 ? "+" : ""}${d.deltaPct.toFixed(1)}%`;
+          const deltaMsLabel = `${d.deltaMs >= 0 ? "+" : ""}${d.deltaMs.toFixed(2)}`;
+          return `<tr>
+            <td><strong>${i + 1}</strong></td>
+            <td>S${d.sc.id}: ${d.sc.name}</td>
+            <td><span class="op-chip op-${d.sc.operation.toLowerCase()}">${d.sc.operation}</span></td>
+            <td><span style="font-weight:700;color:${COLORS[d.db] || "#555"}">${d.db}</span></td>
+            <td>${d.woMs.toFixed(2)}</td>
+            <td>${d.wiMs.toFixed(2)}</td>
+            <td class="${cls}">${deltaMsLabel}</td>
+            <td class="${cls}">${pct}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      fillTable("table-top5", top5, true);
+      fillTable("table-bot5", bot5, false);
+    }
+
+    function renderAll() {
+      const tab = activeTabId();
+      const phase = document.getElementById("phase-filter").value;
+      if (tab === "overview") {
+        renderOverview();
+      } else if (tab === "h1") {
+        renderH1();
+      } else if (tab === "delta") {
+        renderDelta();
+      } else if (tab === "scenarios") {
+        renderScenarioHeatmap(phase);
+      } else if (tab === "json") {
+        renderJson();
+      }
+    }
+
+    initFilters();
+    initTabs();
+    setLegend();
+  </script>
+</body>
+</html>
